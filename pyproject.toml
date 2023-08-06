@@ -1,21 +1,28 @@
-[tool.poetry]
+[project]
 name = "requirements"
 version = "0.1.0"
-description = "Cli tool that will replace a package in a requirements.txt file with a new package."
-authors = ["Jason"]
+description = "Cli tool to update requirements.txt files in a mono repo style project."
+authors = [
+    {name = "jason", email = "ahlstrand.jason@icloud.com"},
+]
+dependencies = [
+    "click>=8.1.7",
+]
+requires-python = ">=3.12"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.9"
-click = "^8.1.6"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
+scripts = {requirements = "main:cli"}
+license = {text = "MIT"}
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[project.scripts]
-requirements = "requirements.main:cli"
+
+[tool.pdm]
+package-type = "library"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "setuptools>=69.0.3",
+]
