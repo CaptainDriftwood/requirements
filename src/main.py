@@ -28,8 +28,11 @@ def sort_packages(packages: List[str], locale_: Optional[str] = None) -> List[st
     if locale_ is None:
         return sorted(packages)
     else:
-        with set_locale(locale_) as strcoll:
-            return sorted(packages, key=cmp_to_key(strcoll))
+        try:
+            with set_locale(locale_) as strcoll:
+                return sorted(packages, key=cmp_to_key(strcoll))
+        except locale.Error:
+            return sorted(packages)
 
 
 def gather_requirements_files(paths: List[pathlib.Path]) -> List[pathlib.Path]:
