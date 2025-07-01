@@ -31,7 +31,10 @@ def sort_packages(packages: List[str], locale_: Optional[str] = None) -> List[st
         try:
             with set_locale(locale_) as strcoll:
                 return sorted(packages, key=cmp_to_key(strcoll))
-        except locale.Error:
+        except locale.Error as e:
+            logging.warning(
+                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
+            )
             return sorted(packages)
 
 
