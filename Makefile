@@ -6,21 +6,21 @@ help:  ## Display this help message
 	@echo "Targets:"
 	@echo "  test    Run pytest against all tests"
 	@echo "  lint    Run ruff linter against all files"
-	@echo "  format  Run black and isort against all Python files"
+	@echo "  format  Run ruff formatter against all Python files"
 	@echo "  clean   Remove all .pytest_cache and __pycache__ directories"
-	@echo "  upgrade Upgrade all Python packages to latest versions using pdm"
+	@echo "  upgrade Upgrade all Python packages to latest versions using uv"
 	@echo "  type    Run mypy against all Python files"
 	@echo "  help    Display this help message"
 
 test:  ## Run pytest against all tests
-	@pytest -v
+	@uv run pytest
 
 lint:  ## Run ruff linter against all files
-	@ruff check ./
+	@uv run ruff check ./
 
-format:  ## Run black and isort against all Python files
-	@black ./
-	@isort --profile black ./
+format:  ## Run ruff formatter against all Python files
+	@uv run ruff check --fix ./
+	@uv run ruff format ./
 
 clean: ## Remove all .pytest_cache and __pycache__ directories
 	@find . -type d -name .pytest_cache -exec rm -rf {} +
@@ -28,8 +28,8 @@ clean: ## Remove all .pytest_cache and __pycache__ directories
 	@find . -type d -name build -exec rm -rf {} +
 	@find . -type d -name "requirements.egg-info" -exec rm -rf {} +
 
-upgrade:  ## Upgrade all Python packages to latest versions using pdm
-	pdm update
+upgrade:  ## Upgrade all Python packages to latest versions using uv
+	uv sync --upgrade
 
 type:  ## Run mypy against all Python files
-	@mypy --config-file ./mypy.ini ./
+	@uv run mypy ./

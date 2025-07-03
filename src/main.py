@@ -1,13 +1,17 @@
 import locale
+import logging
 import pathlib
 import re
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cmp_to_key
-from typing import Callable, Generator, List, Optional, Tuple
+from typing import Callable, Optional
 
 import click
 
 DEFAULT_LOCALE = "en_US.UTF-8"
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 @contextmanager
@@ -22,7 +26,7 @@ def set_locale(new_locale: Optional[str] = None) -> Generator[Callable, None, No
         locale.setlocale(locale.LC_COLLATE, current_locale)
 
 
-def sort_packages(packages: List[str], locale_: Optional[str] = None) -> List[str]:
+def sort_packages(packages: list[str], locale_: Optional[str] = None) -> list[str]:
     """Sort a list of packages using specified locale"""
 
     if locale_ is None:
@@ -38,7 +42,7 @@ def sort_packages(packages: List[str], locale_: Optional[str] = None) -> List[st
             return sorted(packages)
 
 
-def gather_requirements_files(paths: List[pathlib.Path]) -> List[pathlib.Path]:
+def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
     """
     Find all requirements.txt files in the given paths, ignoring virtual environment/aws-sam
     related directories
@@ -63,13 +67,13 @@ def gather_requirements_files(paths: List[pathlib.Path]) -> List[pathlib.Path]:
     return filtered_requirements_files
 
 
-def resolve_paths(paths: Tuple[str]) -> List[pathlib.Path]:
+def resolve_paths(paths: tuple[str, ...]) -> list[pathlib.Path]:
     """Resolve the given paths into a list of pathlib.Path objects"""
 
     if not paths or (len(paths) == 1 and paths[0].strip() == "*"):
         return [pathlib.Path.cwd()]
 
-    resolved_paths: List[pathlib.Path] = []
+    resolved_paths: list[pathlib.Path] = []
     for path in paths:
         resolved_paths.extend(
             pathlib.Path(p.strip()) for p in path.split(" ") if p.strip()
@@ -110,7 +114,7 @@ def check_package_name(package_name: str, line: str) -> bool:
     help="Manage requirements.txt files such as adding, removing, and updating individual packages in bulk"
 )
 @click.version_option(package_name="requirements")
-def cli():
+def cli() -> None:
     pass
 
 
@@ -128,9 +132,9 @@ update_help = (
 def update_package(
     package_name: str,
     version_specifier: str,
-    paths: Tuple[str],
+    paths: tuple[str],
     preview: bool,
-):
+) -> None:
     """Replace a package name in requirements.txt files"""
 
     # If the version specifier does not start with ==, !=, >=, <=, >, <, or ~=,
@@ -176,7 +180,7 @@ find_help = (
     is_flag=True,
     help="Print the package contained in the requirements.txt file",
 )
-def find_package(package_name: str, paths: Tuple[str], verbose: bool):
+def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
@@ -197,7 +201,7 @@ add_help = (
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def add_package(package_name: str, paths: Tuple[str], preview: bool):
+def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     """Add a package to requirements.txt files"""
 
     if preview:
@@ -237,7 +241,7 @@ remove_help = (
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def remove_package(package_name: str, paths: Tuple[str], preview: bool):
+def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     """Remove a package from requirements.txt files"""
 
     if preview:
@@ -270,7 +274,7 @@ sort_help = (
 @cli.command(name="sort", help=sort_help)
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def sort_requirements(paths: Tuple[str], preview: bool):
+def sort_requirements(paths: tuple[str], preview: bool) -> None:
     """Sort requirements.txt files in place"""
 
     if preview:
@@ -300,7 +304,7 @@ cat_help = (
 
 @cli.command(name="cat", help=cat_help)
 @click.argument("paths", nargs=-1)
-def cat_requirements(paths: Tuple[str]):
+def cat_requirements(paths: tuple[str]) -> None:
     """Cat the contents of all requirements.txt files in a given path(s)"""
 
     resolved_paths = resolve_paths(paths)
