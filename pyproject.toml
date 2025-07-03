@@ -25,6 +25,7 @@ packages = ["src"]
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
     "ruff>=0.4.0",
     "mypy>=1.9.0",
     "setuptools>=80.9.0",
@@ -91,4 +92,31 @@ disallow_untyped_defs = false
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --cov=src --cov-report=term-missing --cov-report=html"
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "tests/*",
+    "*/site-packages/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+show_missing = true
+skip_covered = false
+precision = 2
