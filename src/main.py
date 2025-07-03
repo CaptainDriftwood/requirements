@@ -1,4 +1,5 @@
 import locale
+import logging
 import pathlib
 import re
 from contextlib import contextmanager
@@ -8,6 +9,8 @@ from typing import Callable, Generator, List, Optional, Tuple
 import click
 
 DEFAULT_LOCALE = "en_US.UTF-8"
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 @contextmanager
