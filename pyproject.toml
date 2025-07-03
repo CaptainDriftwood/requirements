@@ -3,26 +3,90 @@ name = "requirements"
 version = "0.1.0"
 description = "Cli tool to update requirements.txt files in a mono repo style project."
 authors = [
-    {name = "jason", email = "ahlstrand.jason@icloud.com"},
+    {name = "jason", email = ""},
 ]
 dependencies = [
     "click>=8.1.7",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 readme = "README.md"
-scripts = {requirements = "main:cli"}
 license = {text = "MIT"}
 
+[project.scripts]
+requirements = "src.main:cli"
+
 [build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
-[tool.pdm]
-package-type = "library"
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "pytest>=7.4.4",
-    "setuptools>=69.0.3",
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
 ]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+# Enable common linting rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "C90", # mccabe complexity
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+# Configure import sorting
+known-first-party = ["src"]
+force-single-line = false
+split-on-trailing-comma = true
+
+[tool.ruff.format]
+# Configure code formatting
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

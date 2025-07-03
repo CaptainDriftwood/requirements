@@ -3,6 +3,8 @@ import pathlib
 import tempfile
 
 import pytest
+from click.testing import CliRunner
+
 from src.main import (
     add_package,
     cat_requirements,
@@ -20,19 +22,21 @@ from src.main import (
 class TestGatherRequirementsFiles:
     """Test functionality when locating requirements.txt files"""
 
-    def test_single_requirements_file(self, single_requirements_file) -> None:
+    def test_single_requirements_file(self, single_requirements_file: str) -> None:
         filepath = pathlib.Path(single_requirements_file)
         files = gather_requirements_files([filepath])
         assert len(files) == 1
 
-    def test_multiple_requirements_files(self, multiple_nested_directories) -> None:
+    def test_multiple_requirements_files(
+        self, multiple_nested_directories: str
+    ) -> None:
         filepath = pathlib.Path(multiple_nested_directories)
         files = gather_requirements_files([filepath])
         assert len(files) == 4
 
 
 def test_single_requirements_file_in_directory(
-    single_requirements_file, cli_runner
+    single_requirements_file: str, cli_runner: CliRunner
 ) -> None:
     result = cli_runner.invoke(
         update_package, ["pytest", "~=6.0.0", single_requirements_file]
@@ -42,7 +46,9 @@ def test_single_requirements_file_in_directory(
     assert contents == "boto3~=1.0.0\nenhancement-models==1.0.0\npytest~=6.0.0\n"
 
 
-def test_multiple_requirements_files(cli_runner, multiple_nested_directories) -> None:
+def test_multiple_requirements_files(
+    cli_runner: CliRunner, multiple_nested_directories: str
+) -> None:
     result = cli_runner.invoke(
         update_package, ["pytest", "~=6.0.0", multiple_nested_directories]
     )
@@ -60,7 +66,7 @@ class TestPreviewChanges:
     """Test previewing changes against files"""
 
     def test_single_requirements_file(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         result = cli_runner.invoke(
             update_package,
@@ -84,7 +90,7 @@ class TestPreviewChanges:
         assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
 
     def test_multiple_requirements_files(
-        self, cli_runner, multiple_nested_directories
+        self, cli_runner: CliRunner, multiple_nested_directories: str
     ) -> None:
         result = cli_runner.invoke(
             update_package,
@@ -129,11 +135,11 @@ class TestPreviewChanges:
         ("example-package", "example_package[extra]==1.2.3", False),
     ],
 )
-def test_check_package_name(package_name, line, expected) -> None:
+def test_check_package_name(package_name: str, line: str, expected: bool) -> None:
     assert check_package_name(package_name, line) == expected
 
 
-def test_cat_requirements(cli_runner, single_requirements_file) -> None:
+def test_cat_requirements(cli_runner: CliRunner, single_requirements_file: str) -> None:
     result = cli_runner.invoke(cat_requirements, [single_requirements_file])
     assert result.exit_code == 0
     assert (
@@ -142,7 +148,9 @@ def test_cat_requirements(cli_runner, single_requirements_file) -> None:
     )
 
 
-def test_replace_package_with_hyphen(cli_runner, single_requirements_file) -> None:
+def test_replace_package_with_hyphen(
+    cli_runner: CliRunner, single_requirements_file: str
+) -> None:
     """Test replacing a package with a hyphen in the name"""
 
     cli_runner.invoke(
@@ -157,7 +165,9 @@ def test_replace_package_with_hyphen(cli_runner, single_requirements_file) -> No
     assert contents == "boto3~=1.0.0\nenhancement_models==2.0.0\npytest\n"
 
 
-def test_replace_package_with_underscore(cli_runner, single_requirements_file):
+def test_replace_package_with_underscore(
+    cli_runner: CliRunner, single_requirements_file: str
+) -> None:
     """Test replacing a package with an underscore in the name"""
 
     cli_runner.invoke(
@@ -172,7 +182,9 @@ def test_replace_package_with_underscore(cli_runner, single_requirements_file):
     assert contents == "boto3~=1.0.0\nenhancement-models==2.0.0\npytest\n"
 
 
-def test_multiple_paths_argument(cli_runner, multiple_nested_directories) -> None:
+def test_multiple_paths_argument(
+    cli_runner: CliRunner, multiple_nested_directories: str
+) -> None:
     """Test passing in multiple paths to the CLI"""
 
     cli_runner.invoke(
@@ -194,7 +206,9 @@ def test_multiple_paths_argument(cli_runner, multiple_nested_directories) -> Non
         assert contents == "boto3~=1.0.0\nenhancement-models==2.0.0\npytest\n"
 
 
-def test_replace_without_paths(cli_runner, single_requirements_file) -> None:
+def test_replace_without_paths(
+    cli_runner: CliRunner, single_requirements_file: str
+) -> None:
     """Test replacing a package without passing in paths"""
 
     # Change directory to parent directory of single_requirements_file
@@ -214,7 +228,9 @@ def test_replace_without_paths(cli_runner, single_requirements_file) -> None:
     assert contents == "boto3~=1.0.0\nenhancement-models==2.0.0\npytest\n"
 
 
-def test_update_without_version_specifier(cli_runner, single_requirements_file) -> None:
+def test_update_without_version_specifier(
+    cli_runner: CliRunner, single_requirements_file: str
+) -> None:
     """Test updating a package without passing in a version specifier"""
 
     cli_runner.invoke(
@@ -230,7 +246,7 @@ def test_update_without_version_specifier(cli_runner, single_requirements_file) 
 
 
 def test_update_with_aws_sam_directory(
-    cli_runner, single_requirements_file_with_aws_sam_build_directory
+    cli_runner: CliRunner, single_requirements_file_with_aws_sam_build_directory: str
 ) -> None:
     """Test updating a package with an AWS SAM directory"""
 
@@ -264,7 +280,9 @@ def test_update_with_aws_sam_directory(
 class TestAddPackage:
     """Test add_package functionality"""
 
-    def test_add_new_package(self, cli_runner, single_requirements_file) -> None:
+    def test_add_new_package(
+        self, cli_runner: CliRunner, single_requirements_file: str
+    ) -> None:
         """Test adding a new package to requirements.txt"""
         result = cli_runner.invoke(add_package, ["requests", single_requirements_file])
         assert result.exit_code == 0
@@ -276,7 +294,9 @@ class TestAddPackage:
         assert "enhancement-models==1.0.0" in contents
         assert "pytest" in contents
 
-    def test_add_existing_package(self, cli_runner, single_requirements_file) -> None:
+    def test_add_existing_package(
+        self, cli_runner: CliRunner, single_requirements_file: str
+    ) -> None:
         """Test adding an existing package to requirements.txt"""
         result = cli_runner.invoke(add_package, ["pytest", single_requirements_file])
         assert result.exit_code == 0
@@ -287,7 +307,7 @@ class TestAddPackage:
         assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
 
     def test_add_package_with_preview(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test adding a package with preview flag"""
         result = cli_runner.invoke(
@@ -304,7 +324,7 @@ class TestAddPackage:
         assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
 
     def test_add_package_multiple_files(
-        self, cli_runner, multiple_nested_directories
+        self, cli_runner: CliRunner, multiple_nested_directories: str
     ) -> None:
         """Test adding a package to multiple requirements files"""
         result = cli_runner.invoke(
@@ -325,7 +345,7 @@ class TestRemovePackage:
     """Test remove_package functionality"""
 
     def test_remove_existing_package(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test removing an existing package from requirements.txt"""
         result = cli_runner.invoke(remove_package, ["pytest", single_requirements_file])
@@ -339,7 +359,7 @@ class TestRemovePackage:
         assert "enhancement-models==1.0.0" in contents
 
     def test_remove_nonexistent_package(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test removing a non-existent package from requirements.txt"""
         result = cli_runner.invoke(
@@ -352,7 +372,7 @@ class TestRemovePackage:
         assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
 
     def test_remove_package_with_preview(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test removing a package with preview flag"""
         result = cli_runner.invoke(
@@ -373,7 +393,7 @@ class TestRemovePackage:
         assert "enhancement-models==1.0.0" in contents
 
     def test_remove_package_multiple_files(
-        self, cli_runner, multiple_nested_directories
+        self, cli_runner: CliRunner, multiple_nested_directories: str
     ) -> None:
         """Test removing a package from multiple requirements files"""
         result = cli_runner.invoke(
@@ -393,14 +413,16 @@ class TestRemovePackage:
 class TestFindPackage:
     """Test find_package functionality"""
 
-    def test_find_existing_package(self, cli_runner, single_requirements_file) -> None:
+    def test_find_existing_package(
+        self, cli_runner: CliRunner, single_requirements_file: str
+    ) -> None:
         """Test finding an existing package in requirements.txt"""
         result = cli_runner.invoke(find_package, ["pytest", single_requirements_file])
         assert result.exit_code == 0
         assert "requirements.txt" in result.output
 
     def test_find_nonexistent_package(
-        self, cli_runner, single_requirements_file
+        self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test finding a non-existent package in requirements.txt"""
         result = cli_runner.invoke(
@@ -409,7 +431,9 @@ class TestFindPackage:
         assert result.exit_code == 0
         assert result.output.strip() == ""
 
-    def test_find_package_verbose(self, cli_runner, single_requirements_file) -> None:
+    def test_find_package_verbose(
+        self, cli_runner: CliRunner, single_requirements_file: str
+    ) -> None:
         """Test finding a package with verbose output"""
         result = cli_runner.invoke(
             find_package, ["pytest", single_requirements_file, "--verbose"]
@@ -419,7 +443,7 @@ class TestFindPackage:
         assert "pytest" in result.output
 
     def test_find_package_multiple_files(
-        self, cli_runner, multiple_nested_directories
+        self, cli_runner: CliRunner, multiple_nested_directories: str
     ) -> None:
         """Test finding a package in multiple requirements files"""
         result = cli_runner.invoke(
@@ -432,7 +456,7 @@ class TestFindPackage:
 class TestSortRequirements:
     """Test sort_requirements functionality"""
 
-    def test_sort_requirements_file(self, cli_runner) -> None:
+    def test_sort_requirements_file(self, cli_runner: CliRunner) -> None:
         """Test sorting a requirements file"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -445,7 +469,7 @@ class TestSortRequirements:
             contents = requirements_file.read_text()
             assert contents == "apache\nboto3\nzpackage\n"
 
-    def test_sort_already_sorted_file(self, cli_runner) -> None:
+    def test_sort_already_sorted_file(self, cli_runner: CliRunner) -> None:
         """Test sorting an already sorted requirements file"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -456,7 +480,7 @@ class TestSortRequirements:
             assert result.exit_code == 0
             assert "already sorted" in result.output
 
-    def test_sort_requirements_with_preview(self, cli_runner) -> None:
+    def test_sort_requirements_with_preview(self, cli_runner: CliRunner) -> None:
         """Test sorting requirements with preview flag"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -504,7 +528,9 @@ class TestResolvePathsFunction:
 class TestVirtualEnvironmentExclusion:
     """Test virtual environment directory exclusion"""
 
-    def test_exclude_venv_directory(self, cli_runner, requirements_txt) -> None:
+    def test_exclude_venv_directory(
+        self, cli_runner: CliRunner, requirements_txt: bytes
+    ) -> None:
         """Test that venv directories are excluded"""
         with tempfile.TemporaryDirectory() as td:
             # Create main requirements file
@@ -522,7 +548,9 @@ class TestVirtualEnvironmentExclusion:
             assert result.exit_code == 0
             assert result.output.strip() == ""
 
-    def test_exclude_dot_venv_directory(self, cli_runner, requirements_txt) -> None:
+    def test_exclude_dot_venv_directory(
+        self, cli_runner: CliRunner, requirements_txt: bytes
+    ) -> None:
         """Test that .venv directories are excluded"""
         with tempfile.TemporaryDirectory() as td:
             # Create main requirements file
@@ -540,7 +568,9 @@ class TestVirtualEnvironmentExclusion:
             assert result.exit_code == 0
             assert result.output.strip() == ""
 
-    def test_exclude_virtualenv_directory(self, cli_runner, requirements_txt) -> None:
+    def test_exclude_virtualenv_directory(
+        self, cli_runner: CliRunner, requirements_txt: bytes
+    ) -> None:
         """Test that virtualenv directories are excluded"""
         with tempfile.TemporaryDirectory() as td:
             # Create main requirements file
@@ -562,13 +592,13 @@ class TestVirtualEnvironmentExclusion:
 class TestErrorHandling:
     """Test error handling scenarios"""
 
-    def test_invalid_path(self, cli_runner) -> None:
+    def test_invalid_path(self, cli_runner: CliRunner) -> None:
         """Test handling invalid file paths"""
         result = cli_runner.invoke(find_package, ["pytest", "/nonexistent/path"])
         assert result.exit_code == 0
         assert "not a valid path" in result.output
 
-    def test_empty_requirements_file(self, cli_runner) -> None:
+    def test_empty_requirements_file(self, cli_runner: CliRunner) -> None:
         """Test handling empty requirements files"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -578,7 +608,7 @@ class TestErrorHandling:
             assert result.exit_code == 0
             assert result.output.strip() == ""
 
-    def test_malformed_requirements_file(self, cli_runner) -> None:
+    def test_malformed_requirements_file(self, cli_runner: CliRunner) -> None:
         """Test handling malformed requirements files"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -592,49 +622,49 @@ class TestErrorHandling:
 class TestCLIIntegration:
     """Test full CLI integration"""
 
-    def test_cli_help(self, cli_runner) -> None:
+    def test_cli_help(self, cli_runner: CliRunner) -> None:
         """Test CLI help output"""
         result = cli_runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "Manage requirements.txt files" in result.output
 
-    def test_cli_version(self, cli_runner) -> None:
+    def test_cli_version(self, cli_runner: CliRunner) -> None:
         """Test CLI version output"""
         result = cli_runner.invoke(cli, ["--version"])
         # Version command may fail if package not installed, but should handle gracefully
         assert result.exit_code in [0, 1]
 
-    def test_update_command_help(self, cli_runner) -> None:
+    def test_update_command_help(self, cli_runner: CliRunner) -> None:
         """Test update command help"""
         result = cli_runner.invoke(cli, ["update", "--help"])
         assert result.exit_code == 0
         assert "Replace a package name" in result.output
 
-    def test_add_command_help(self, cli_runner) -> None:
+    def test_add_command_help(self, cli_runner: CliRunner) -> None:
         """Test add command help"""
         result = cli_runner.invoke(cli, ["add", "--help"])
         assert result.exit_code == 0
         assert "Add a package" in result.output
 
-    def test_remove_command_help(self, cli_runner) -> None:
+    def test_remove_command_help(self, cli_runner: CliRunner) -> None:
         """Test remove command help"""
         result = cli_runner.invoke(cli, ["remove", "--help"])
         assert result.exit_code == 0
         assert "Remove a package" in result.output
 
-    def test_find_command_help(self, cli_runner) -> None:
+    def test_find_command_help(self, cli_runner: CliRunner) -> None:
         """Test find command help"""
         result = cli_runner.invoke(cli, ["find", "--help"])
         assert result.exit_code == 0
         assert "Find a package" in result.output
 
-    def test_sort_command_help(self, cli_runner) -> None:
+    def test_sort_command_help(self, cli_runner: CliRunner) -> None:
         """Test sort command help"""
         result = cli_runner.invoke(cli, ["sort", "--help"])
         assert result.exit_code == 0
         assert "Sort requirements.txt" in result.output
 
-    def test_cat_command_help(self, cli_runner) -> None:
+    def test_cat_command_help(self, cli_runner: CliRunner) -> None:
         """Test cat command help"""
         result = cli_runner.invoke(cli, ["cat", "--help"])
         assert result.exit_code == 0
@@ -644,7 +674,7 @@ class TestCLIIntegration:
 class TestComplexScenarios:
     """Test complex real-world scenarios"""
 
-    def test_workflow_add_update_remove(self, cli_runner) -> None:
+    def test_workflow_add_update_remove(self, cli_runner: CliRunner) -> None:
         """Test complete workflow: add, update, then remove a package"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -670,7 +700,7 @@ class TestComplexScenarios:
             assert "pytest" not in contents
             assert "requests==2.25.1" in contents
 
-    def test_mixed_package_formats(self, cli_runner) -> None:
+    def test_mixed_package_formats(self, cli_runner: CliRunner) -> None:
         """Test handling mixed package formats"""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
@@ -693,7 +723,7 @@ class TestComplexScenarios:
             assert result.exit_code == 0
             assert "requirements.txt" in result.output
 
-    def test_large_monorepo_simulation(self, cli_runner) -> None:
+    def test_large_monorepo_simulation(self, cli_runner: CliRunner) -> None:
         """Test performance with many nested directories"""
         with tempfile.TemporaryDirectory() as td:
             base_path = pathlib.Path(td)

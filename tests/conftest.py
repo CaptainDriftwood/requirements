@@ -1,13 +1,13 @@
 import pathlib
 import tempfile
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from click.testing import CliRunner
 
 
 @pytest.fixture
-def cli_runner() -> CliRunner:
+def cli_runner() -> Generator[CliRunner, None, None]:
     yield CliRunner()
 
 
@@ -17,7 +17,7 @@ def requirements_txt() -> bytes:
 
 
 @pytest.fixture
-def single_requirements_file(requirements_txt) -> Generator[str, None, None]:
+def single_requirements_file(requirements_txt: bytes) -> Generator[str, None, None]:
     """Single temporary directory with a requirements.txt file"""
 
     with tempfile.TemporaryDirectory() as td:
@@ -28,7 +28,7 @@ def single_requirements_file(requirements_txt) -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def multiple_nested_directories(requirements_txt) -> Generator[str, None, None]:
+def multiple_nested_directories(requirements_txt: bytes) -> Generator[str, None, None]:
     """
     Multiple temporary nested directories with
     a single requirements.txt file in each
@@ -47,7 +47,7 @@ def multiple_nested_directories(requirements_txt) -> Generator[str, None, None]:
 
 @pytest.fixture
 def single_requirements_file_with_aws_sam_build_directory(
-    requirements_txt,
+    requirements_txt: bytes,
 ) -> Generator[str, None, None]:
     """
     A single requirements.txt file that is adjacent to an AWS SAM build directory (.aws-sam/build),
@@ -78,7 +78,7 @@ def requirements_txt_with_comments() -> bytes:
 requests==2.25.1
 boto3~=1.17.0
 
-# Development dependencies  
+# Development dependencies
 pytest>=6.0.0
 black==21.0.0
 
@@ -104,7 +104,7 @@ black!=21.5b0
 ./local_package
 ../shared_lib
 
-# VCS dependencies  
+# VCS dependencies
 git+https://github.com/user/repo.git@v1.0
 git+https://github.com/user/repo.git#egg=package
 

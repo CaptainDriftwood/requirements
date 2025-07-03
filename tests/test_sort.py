@@ -1,11 +1,10 @@
-from typing import List
-
 import pytest
+
 from src.main import sort_packages
 
 
 @pytest.fixture
-def packages() -> List[str]:
+def packages() -> list[str]:
     return [
         "boto3",
         "apischema",
@@ -28,7 +27,7 @@ def test_sort_with_no_locale(packages):
     ]
 
 
-def test_sort_with_locale(packages) -> None:
+def test_sort_with_locale(packages: list[str]) -> None:
     result = sort_packages(packages, locale_="en_US.UTF-8")
     assert result == [
         "./some_package",
@@ -40,7 +39,7 @@ def test_sort_with_locale(packages) -> None:
     ]
 
 
-def test_sort_with_uk_locale(packages) -> None:
+def test_sort_with_uk_locale(packages: list[str]) -> None:
     result = sort_packages(packages, locale_="en_GB.UTF-8")
     assert result == [
         "./some_package",
@@ -52,7 +51,7 @@ def test_sort_with_uk_locale(packages) -> None:
     ]
 
 
-def test_sort_with_invalid_locale(packages) -> None:
+def test_sort_with_invalid_locale(packages: list[str]) -> None:
     """Test sorting with an invalid locale falls back to default sorting"""
     result = sort_packages(packages, locale_="invalid_locale")
     # Should fall back to default sorting (same as no locale)
@@ -151,7 +150,7 @@ def test_sort_preserves_exact_package_strings() -> None:
         "POSIX",
     ],
 )
-def test_sort_with_c_posix_locales(packages, locale_name) -> None:
+def test_sort_with_c_posix_locales(packages: list[str], locale_name: str) -> None:
     """Test sorting with C and POSIX locales"""
     result = sort_packages(packages, locale_=locale_name)
     expected = [
@@ -172,7 +171,7 @@ def test_sort_with_c_posix_locales(packages, locale_name) -> None:
         "en_GB.UTF-8",
     ],
 )
-def test_sort_with_utf8_locales(packages, locale_name) -> None:
+def test_sort_with_utf8_locales(packages: list[str], locale_name: str) -> None:
     """Test sorting with UTF-8 locales"""
     result = sort_packages(packages, locale_=locale_name)
     expected = [
