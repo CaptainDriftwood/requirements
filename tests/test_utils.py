@@ -36,7 +36,7 @@ class TestResolvePathsFunction:
 
     def test_resolve_multiple_paths(self) -> None:
         """Test resolving multiple paths"""
-        result = resolve_paths(("path1 path2 path3",))
+        result = resolve_paths(("path1", "path2", "path3"))
         assert len(result) == 3
         assert result[0] == pathlib.Path("path1")
         assert result[1] == pathlib.Path("path2")
@@ -53,6 +53,20 @@ class TestResolvePathsFunction:
         result = resolve_paths(("*",))
         assert len(result) == 1
         assert result[0] == pathlib.Path.cwd()
+
+    def test_resolve_paths_with_spaces(self) -> None:
+        """Test resolving paths that contain spaces"""
+        result = resolve_paths(("/path/with spaces/project",))
+        assert len(result) == 1
+        assert result[0] == pathlib.Path("/path/with spaces/project")
+
+    def test_resolve_multiple_paths_with_spaces(self) -> None:
+        """Test resolving multiple paths where some contain spaces"""
+        result = resolve_paths(("/path/with spaces/project", "/normal/path", "/another path/here"))
+        assert len(result) == 3
+        assert result[0] == pathlib.Path("/path/with spaces/project")
+        assert result[1] == pathlib.Path("/normal/path")
+        assert result[2] == pathlib.Path("/another path/here")
 
 
 @pytest.mark.parametrize(

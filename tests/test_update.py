@@ -119,7 +119,8 @@ def test_multiple_paths_argument(
         [
             "enhancement-models",
             "==2.0.0",
-            f"{multiple_nested_directories}/directory0/requirements.txt  {multiple_nested_directories}/directory1/requirements.txt",  # noqa
+            f"{multiple_nested_directories}/directory0/requirements.txt",
+            f"{multiple_nested_directories}/directory1/requirements.txt",
         ],
     )
     for i in range(3):

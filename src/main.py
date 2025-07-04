@@ -75,9 +75,7 @@ def resolve_paths(paths: tuple[str, ...]) -> list[pathlib.Path]:
 
     resolved_paths: list[pathlib.Path] = []
     for path in paths:
-        resolved_paths.extend(
-            pathlib.Path(p.strip()) for p in path.split(" ") if p.strip()
-        )
+        resolved_paths.append(pathlib.Path(path.strip()))
 
     return resolved_paths
 
@@ -260,10 +258,9 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             click.echo(requirements_file)
             click.echo("\n".join(updated_contents).strip() + "\n")
 
-        if len(contents) != len(updated_contents):
-            if not preview:
-                requirements_file.write_text("\n".join(updated_contents) + "\n")
-                click.echo(f"Removed {package_name} from {requirements_file}")
+        if len(contents) != len(updated_contents) and not preview:
+            requirements_file.write_text("\n".join(updated_contents) + "\n")
+            click.echo(f"Removed {package_name} from {requirements_file}")
 
 
 sort_help = (

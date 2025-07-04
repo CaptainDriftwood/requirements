@@ -43,7 +43,7 @@ class TestRemovePackage:
         original_contents = (
             pathlib.Path(single_requirements_file) / "requirements.txt"
         ).read_text()
-        
+
         result = cli_runner.invoke(
             remove_package, ["pytest", single_requirements_file, "--preview"]
         )
