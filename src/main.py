@@ -1,5 +1,6 @@
 import locale
 import logging
+import os
 import pathlib
 import re
 from collections.abc import Generator
@@ -78,6 +79,19 @@ def resolve_paths(paths: tuple[str, ...]) -> list[pathlib.Path]:
         resolved_paths.append(pathlib.Path(path.strip()))
 
     return resolved_paths
+
+
+def check_file_writable(file_path: pathlib.Path, preview: bool = False) -> bool:
+    """Check if a file is writable and warn user if not (unless in preview mode)"""
+    
+    if preview:
+        return True
+    
+    if not os.access(file_path, os.W_OK):
+        click.echo(f"Warning: {file_path} is read-only, skipping file modification", err=True)
+        return False
+    
+    return True
 
 
 def check_package_name(package_name: str, line: str) -> bool:
@@ -160,8 +174,9 @@ def update_package(
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(contents).strip() + "\n")
             else:
-                requirements_file.write_text("\n".join(contents).strip() + "\n")
-                click.echo(f"Updated {requirements_file}")
+                if check_file_writable(requirements_file, preview):
+                    requirements_file.write_text("\n".join(contents).strip() + "\n")
+                    click.echo(f"Updated {requirements_file}")
 
 
 find_help = (
@@ -225,8 +240,9 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
                 click.echo(requirements_file)
                 click.echo("\n".join(contents).strip())
             else:
-                requirements_file.write_text("\n".join(contents).strip() + "\n")
-                click.echo(f"Updated {requirements_file}")
+                if check_file_writable(requirements_file, preview):
+                    requirements_file.write_text("\n".join(contents).strip() + "\n")
+                    click.echo(f"Updated {requirements_file}")
 
 
 remove_help = (
@@ -259,8 +275,9 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             click.echo("\n".join(updated_contents).strip() + "\n")
 
         if len(contents) != len(updated_contents) and not preview:
-            requirements_file.write_text("\n".join(updated_contents) + "\n")
-            click.echo(f"Removed {package_name} from {requirements_file}")
+            if check_file_writable(requirements_file, preview):
+                requirements_file.write_text("\n".join(updated_contents) + "\n")
+                click.echo(f"Removed {package_name} from {requirements_file}")
 
 
 sort_help = (
@@ -285,8 +302,9 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
         new_contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
         if contents != new_contents:
             if not preview:
-                requirements_file.write_text("\n".join(new_contents).strip() + "\n")
-                click.echo(f"Sorted {requirements_file}")
+                if check_file_writable(requirements_file, preview):
+                    requirements_file.write_text("\n".join(new_contents).strip() + "\n")
+                    click.echo(f"Sorted {requirements_file}")
             else:
                 click.echo(requirements_file)
                 click.echo("\n".join(new_contents).strip())
