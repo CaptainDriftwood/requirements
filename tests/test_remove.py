@@ -39,6 +39,11 @@ class TestRemovePackage:
         self, cli_runner: CliRunner, single_requirements_file: str
     ) -> None:
         """Test removing a package with preview flag"""
+        # Store original contents before preview
+        original_contents = (
+            pathlib.Path(single_requirements_file) / "requirements.txt"
+        ).read_text()
+        
         result = cli_runner.invoke(
             remove_package, ["pytest", single_requirements_file, "--preview"]
         )
@@ -48,13 +53,12 @@ class TestRemovePackage:
         assert "boto3~=1.0.0" in result.output
         assert "enhancement-models==1.0.0" in result.output
 
-        # Note: There appears to be a bug where preview mode actually modifies the file
-        # This should be fixed in the implementation, but for now we test the current behavior
+        # File should remain unchanged in preview mode
         contents = (
             pathlib.Path(single_requirements_file) / "requirements.txt"
         ).read_text()
-        assert "boto3~=1.0.0" in contents
-        assert "enhancement-models==1.0.0" in contents
+        assert contents == original_contents
+        assert "pytest" in contents  # pytest should still be in the file
 
     def test_remove_package_multiple_files(
         self, cli_runner: CliRunner, multiple_nested_directories: str

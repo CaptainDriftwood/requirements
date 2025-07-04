@@ -261,8 +261,9 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             click.echo("\n".join(updated_contents).strip() + "\n")
 
         if len(contents) != len(updated_contents):
-            requirements_file.write_text("\n".join(updated_contents) + "\n")
-            click.echo(f"Removed {package_name} from {requirements_file}")
+            if not preview:
+                requirements_file.write_text("\n".join(updated_contents) + "\n")
+                click.echo(f"Removed {package_name} from {requirements_file}")
 
 
 sort_help = (
