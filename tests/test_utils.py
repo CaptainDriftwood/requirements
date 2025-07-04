@@ -62,7 +62,9 @@ class TestResolvePathsFunction:
 
     def test_resolve_multiple_paths_with_spaces(self) -> None:
         """Test resolving multiple paths where some contain spaces"""
-        result = resolve_paths(("/path/with spaces/project", "/normal/path", "/another path/here"))
+        result = resolve_paths(
+            ("/path/with spaces/project", "/normal/path", "/another path/here")
+        )
         assert len(result) == 3
         assert result[0] == pathlib.Path("/path/with spaces/project")
         assert result[1] == pathlib.Path("/normal/path")
