@@ -165,6 +165,12 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+    # Patterns for __init__.py files only
+    "^\\s*from\\s+.*\\s+import\\s+.*$",  # from module import something
+    "^\\s*import\\s+.*$",              # import module
+    "^\\s*__version__\\s*=",           # __version__ = "..."
+    "^\\s*__author__\\s*=",            # __author__ = "..."
+    "^\\s*__all__\\s*=",               # __all__ = [...]
 ]
 show_missing = true
 skip_covered = false
