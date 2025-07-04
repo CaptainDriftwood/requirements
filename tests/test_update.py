@@ -141,7 +141,7 @@ def test_replace_without_paths(
 
     # Change directory to parent directory of single_requirements_file
     # for the duration of this test
-    current_directory = os.getcwd()
+    current_directory = pathlib.Path.cwd()
     os.chdir(pathlib.Path(single_requirements_file).parent)
 
     cli_runner.invoke(

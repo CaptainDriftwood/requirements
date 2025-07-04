@@ -68,16 +68,41 @@ select = [
     "SIM", # flake8-simplify
     "TCH", # flake8-type-checking
     "PTH", # flake8-use-pathlib
+    "RUF", # ruff-specific rules
+    "PL",  # pylint
+    "PIE", # flake8-pie
+    "T20", # flake8-print
+    "RET", # flake8-return
+    "RSE", # flake8-raise
+    "SLF", # flake8-self
+    "TRY", # tryceratops
+    "FLY", # flynt
+    "PERF", # perflint
+    "FURB", # refurb
+    "LOG", # flake8-logging
+    "G",   # flake8-logging-format
 ]
 ignore = [
     "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
     "W191",  # indentation contains tabs
+    "PLR0913", # too many arguments to function call
+    "PLR0912", # too many branches
+    "PLR0915", # too many statements
+    "PLR2004", # magic value used in comparison
+    "TRY003", # avoid specifying long messages outside the exception class
+    "TRY300", # consider moving this statement to an `else` block
+    "FLY002", # consider f-string instead of string concatenation
+    "PERF401", # use a list comprehension to create a transformed list
+    "RUF012", # mutable class attributes should be annotated with `typing.ClassVar`
+    "PLE1205", # format string contains both automatic and manual field specs
+    "T201", # print found
+    "G004", # logging statement uses f-string
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["ARG", "SIM"]
+"tests/**/*" = ["ARG", "SIM", "PLR0913", "PLR0915", "PLR2004", "TRY301", "PERF401"]
 
 [tool.ruff.lint.isort]
 # Configure import sorting

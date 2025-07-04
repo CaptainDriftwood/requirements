@@ -12,6 +12,7 @@ import click
 
 DEFAULT_LOCALE = "en_US.UTF-8"
 
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
@@ -32,15 +33,14 @@ def sort_packages(packages: list[str], locale_: Optional[str] = None) -> list[st
 
     if locale_ is None:
         return sorted(packages)
-    else:
-        try:
-            with set_locale(locale_) as strcoll:
-                return sorted(packages, key=cmp_to_key(strcoll))
-        except locale.Error as e:
-            logging.warning(
-                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
-            )
-            return sorted(packages)
+    try:
+        with set_locale(locale_) as strcoll:
+            return sorted(packages, key=cmp_to_key(strcoll))
+    except locale.Error as e:
+        logger.warning(
+            f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
+        )
+        return sorted(packages)
 
 
 def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
@@ -61,11 +61,9 @@ def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
             )
 
     exclusion_pattern = re.compile(r"(venv|\.venv|virtualenv|\.aws-sam)")
-    filtered_requirements_files = [
+    return [
         file for file in requirements_files if not exclusion_pattern.search(str(file))
     ]
-
-    return filtered_requirements_files
 
 
 def resolve_paths(paths: tuple[str, ...]) -> list[pathlib.Path]:
@@ -114,7 +112,7 @@ def check_package_name(package_name: str, line: str) -> bool:
 
     # If the line is a package that is being referenced by a local path, we need to
     # check the last part of the path to see if it matches the package name.
-    if line.startswith("./") or line.startswith("../"):
+    if line.startswith(("./", "../")):
         return package_name in line.split("/")[-1]
 
     # Finally, we remove any sort of version specifier from the line and then check
@@ -175,10 +173,9 @@ def update_package(
             if preview:
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(contents).strip() + "\n")
-            else:
-                if check_file_writable(requirements_file, preview):
-                    requirements_file.write_text("\n".join(contents).strip() + "\n")
-                    click.echo(f"Updated {requirements_file}")
+            elif check_file_writable(requirements_file, preview):
+                requirements_file.write_text("\n".join(contents).strip() + "\n")
+                click.echo(f"Updated {requirements_file}")
 
 
 find_help = (
@@ -241,10 +238,9 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             if preview:
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(contents).strip() + "\n")
-            else:
-                if check_file_writable(requirements_file, preview):
-                    requirements_file.write_text("\n".join(contents).strip() + "\n")
-                    click.echo(f"Updated {requirements_file}")
+            elif check_file_writable(requirements_file, preview):
+                requirements_file.write_text("\n".join(contents).strip() + "\n")
+                click.echo(f"Updated {requirements_file}")
 
 
 remove_help = (
@@ -276,7 +272,11 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             click.echo(click.style(requirements_file, fg="cyan", bold=True))
             click.echo("\n".join(updated_contents).strip() + "\n")
 
-        if len(contents) != len(updated_contents) and not preview and check_file_writable(requirements_file, preview):
+        if (
+            len(contents) != len(updated_contents)
+            and not preview
+            and check_file_writable(requirements_file, preview)
+        ):
             requirements_file.write_text("\n".join(updated_contents) + "\n")
             click.echo(f"Removed {package_name} from {requirements_file}")
 

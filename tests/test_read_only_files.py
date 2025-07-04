@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -24,7 +23,7 @@ def create_requirements_file(
     file_path.write_text(content)
 
     if read_only:
-        os.chmod(file_path, 0o444)
+        file_path.chmod(0o444)
 
     return file_path
 

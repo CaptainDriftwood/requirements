@@ -25,9 +25,7 @@ def create_requirements_file(base_path: Path, subdir: str, content: str):
 
 def test_update_preview_output_format(runner, tmp_path):
     """Test that update command uses consistent output format in preview mode."""
-    create_requirements_file(
-        tmp_path, "project", "django==3.0\nrequests==2.25.1\n"
-    )
+    create_requirements_file(tmp_path, "project", "django==3.0\nrequests==2.25.1\n")
 
     result = runner.invoke(
         cli, ["update", "requests", "2.30.0", "--preview", str(tmp_path)]
@@ -55,9 +53,7 @@ def test_add_preview_output_format(runner, tmp_path):
 
 def test_remove_preview_output_format(runner, tmp_path):
     """Test that remove command uses consistent output format in preview mode."""
-    create_requirements_file(
-        tmp_path, "project", "django==3.0\nrequests==2.25.1\n"
-    )
+    create_requirements_file(tmp_path, "project", "django==3.0\nrequests==2.25.1\n")
 
     result = runner.invoke(cli, ["remove", "requests", "--preview", str(tmp_path)])
 
@@ -71,9 +67,7 @@ def test_remove_preview_output_format(runner, tmp_path):
 
 def test_sort_preview_output_format(runner, tmp_path):
     """Test that sort command uses consistent output format in preview mode."""
-    create_requirements_file(
-        tmp_path, "project", "requests==2.25.1\ndjango==3.0\n"
-    )
+    create_requirements_file(tmp_path, "project", "requests==2.25.1\ndjango==3.0\n")
 
     result = runner.invoke(cli, ["sort", "--preview", str(tmp_path)])
 
@@ -96,9 +90,7 @@ def test_sort_preview_output_format(runner, tmp_path):
 
 def test_all_preview_commands_consistent_format(runner, tmp_path):
     """Test that all preview commands use consistent output format."""
-    create_requirements_file(
-        tmp_path, "project", "requests==2.25.1\ndjango==3.0\n"
-    )
+    create_requirements_file(tmp_path, "project", "requests==2.25.1\ndjango==3.0\n")
 
     # Test all commands that support preview
     commands = [
