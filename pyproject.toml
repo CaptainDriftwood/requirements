@@ -93,7 +93,6 @@ ignore = [
     "PLR2004", # magic value used in comparison
     "TRY003", # avoid specifying long messages outside the exception class
     "TRY300", # consider moving this statement to an `else` block
-    "FLY002", # consider f-string instead of string concatenation
     "PERF401", # use a list comprehension to create a transformed list
     "RUF012", # mutable class attributes should be annotated with `typing.ClassVar`
     "PLE1205", # format string contains both automatic and manual field specs
