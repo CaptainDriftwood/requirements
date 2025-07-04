@@ -94,7 +94,8 @@ class TestResolvePathsFunction:
         # Edge cases with underscore and dash differences
         ("example-package", "example_package>=1.2.3", True),
         ("example_package", "example-package==1.2.3", True),
-        # Testing for package names with version specifiers
+        # Extras and version specifiers
+        ("example", "example[extra]", False),
         ("example", "example[extra]==1.2.3", False),
         ("example_package", "example-package[extra]>=1.2.3", False),
         ("example-package", "example_package[extra]==1.2.3", False),
