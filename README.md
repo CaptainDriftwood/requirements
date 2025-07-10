@@ -1,6 +1,11 @@
 # Requirements CLI
 
-A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects. It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
+<img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
+
+![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
+
+A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.  
+It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
 
 ## Features
 
