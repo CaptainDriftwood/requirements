@@ -3,13 +3,8 @@ help:  ## Display this help message
 	@echo "Usage: make [target] ..."
 	@echo ""
 	@echo "Targets:"
-	@echo "  test    Run pytest against all tests"
-	@echo "  lint    Run ruff linter against all files"
-	@echo "  format  Run ruff formatter against all Python files"
-	@echo "  clean   Clean untracked files (use clean ARGS=\"--dry-run\" for dry run)"
-	@echo "  upgrade Upgrade all Python packages to latest versions using uv"
-	@echo "  type    Run mypy against all Python files"
-	@echo "  help    Display this help message"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {if ($$1 == "help") printf "  %-10s %s\n", $$1, $$2}' && \
+	grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {if ($$1 != "help") printf "  %-10s %s\n", $$1, $$2}' | sort
 
 .PHONY: test
 test:  ## Run pytest against all tests
