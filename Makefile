@@ -10,6 +10,10 @@ help:  ## Display this help message
 test:  ## Run pytest against all tests
 	@uv run pytest
 
+.PHONY: test-quick
+test-quick:  ## Run pytest with minimal output for quick verification
+	@uv run pytest -q
+
 .PHONY: lint
 lint:  ## Run ruff linter against all files
 	@uv run ruff check ./

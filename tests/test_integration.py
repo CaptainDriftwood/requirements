@@ -31,7 +31,7 @@ class TestCLIIntegration:
         """Test update command help"""
         result = cli_runner.invoke(cli, ["update", "--help"])
         assert result.exit_code == 0
-        assert "Replace a package name" in result.output
+        assert "Update a package version" in result.output
 
     def test_add_command_help(self, cli_runner: CliRunner) -> None:
         """Test add command help"""
@@ -61,7 +61,7 @@ class TestCLIIntegration:
         """Test cat command help"""
         result = cli_runner.invoke(cli, ["cat", "--help"])
         assert result.exit_code == 0
-        assert "Cat the contents" in result.output
+        assert "Display the contents" in result.output
 
 
 class TestComplexScenarios:

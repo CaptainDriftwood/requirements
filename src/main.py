@@ -258,13 +258,7 @@ def cli() -> None:
     pass
 
 
-update_help = (
-    "Replace a package name in requirements.txt files\n\nExample: "
-    "requirements replace <package-name> <new-package-name> /path/to/requirements.txt"
-)
-
-
-@cli.command(name="update", help=update_help)
+@cli.command(name="update")
 @click.argument("package_name")
 @click.argument("version_specifier")
 @click.argument("paths", nargs=-1)
@@ -275,7 +269,52 @@ def update_package(
     paths: tuple[str],
     preview: bool,
 ) -> None:
-    """Replace a package name in requirements.txt files"""
+    """Update a package version in requirements.txt files.
+
+    Updates the specified package to a new version across one or more requirements.txt files.
+    Supports all PEP 440 version specifiers and automatically sorts the file after updates.
+
+    \b
+    Examples:
+    Basic version update:
+        $ requirements update django 4.2.0
+        $ requirements update requests 2.28.0
+
+    Version specifiers with operators:
+        $ requirements update django ">=4.2.0"
+        $ requirements update django "~=4.2.0"
+        $ requirements update django "!=4.1.0"
+
+    Complex version constraints:
+        $ requirements update django ">=4.0.0,<5.0.0"
+        $ requirements update requests ">=2.25.0,!=2.26.0"
+
+    Preview changes without saving:
+        $ requirements update django 4.2.0 --preview
+
+    Target specific files or directories:
+        $ requirements update django 4.2.0 /path/to/requirements.txt
+        $ requirements update django 4.2.0 /project/backend /project/frontend
+        $ requirements update django 4.2.0 /project  # Updates all requirements.txt in directory
+
+    Multiple file paths:
+        $ requirements update django 4.2.0 ./requirements.txt ./dev-requirements.txt
+
+    \b
+    Args:
+    package_name: Name of the package to update (case-insensitive).
+    version_specifier: Version specification (e.g., "4.2.0", ">=4.0.0", "~=4.2.0").
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+    preview: If True, shows changes without saving files.
+
+    \b
+    Note:
+    - If no operator is provided, "==" is assumed (e.g., "4.2.0" becomes "==4.2.0")
+    - Package names are matched case-insensitively (Django, django, DJANGO all match)
+    - Handles package name variations with hyphens/underscores automatically
+    - Files are automatically sorted after updates while preserving comments
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    """
 
     # Validate and normalize the version specifier
     version_specifier = validate_version_specifier(version_specifier)
@@ -313,13 +352,7 @@ def update_package(
                 click.echo(f"Updated {requirements_file}")
 
 
-find_help = (
-    "Find a package name in requirements.txt files\n\nExample: "
-    "requirements find <package-name> /path/to/requirements.txt"
-)
-
-
-@cli.command(name="find", help=find_help)
+@cli.command(name="find")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option(
@@ -328,6 +361,46 @@ find_help = (
     help="Print the package contained in the requirements.txt file",
 )
 def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
+    """Find a package in requirements.txt files.
+
+    Searches for the specified package across requirements.txt files and reports
+    which files contain it. Useful for locating package dependencies in large projects.
+
+    \b
+    Examples:
+    Basic package search:
+        $ requirements find django
+        $ requirements find requests
+
+    Verbose output (shows the exact line):
+        $ requirements find django --verbose
+        $ requirements find requests --verbose
+
+    Search in specific files:
+        $ requirements find django /path/to/requirements.txt
+        $ requirements find django ./requirements.txt ./dev-requirements.txt
+
+    Search in directories:
+        $ requirements find django /project/backend
+        $ requirements find django /project  # Searches all requirements.txt in directory
+
+    Search in multiple locations:
+        $ requirements find django /backend /frontend /shared
+
+    \b
+    Args:
+    package_name: Name of the package to find (case-insensitive).
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+    verbose: If True, shows the exact line containing the package.
+
+    \b
+    Note:
+    - Package names are matched case-insensitively (Django, django, DJANGO all match)
+    - Handles package name variations with hyphens/underscores automatically
+    - Ignores commented lines (lines starting with #)
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    - Works with packages that have version specifiers, extras, or URLs
+    """
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
@@ -338,18 +411,52 @@ def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
                     click.echo(line)
 
 
-add_help = (
-    "Add a package to requirements.txt files\n\nExample: "
-    "requirements add <package-name> /path/to/requirements.txt"
-)
-
-
-@cli.command(name="add", help=add_help)
+@cli.command(name="add")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
 def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
-    """Add a package to requirements.txt files"""
+    """Add a package to requirements.txt files.
+
+    Adds the specified package to one or more requirements.txt files if it doesn't
+    already exist. The package is added without a version specifier and the file
+    is automatically sorted after the addition.
+
+    \b
+    Examples:
+    Basic package addition:
+        $ requirements add requests
+        $ requirements add django
+
+    Preview changes without saving:
+        $ requirements add requests --preview
+
+    Add to specific files:
+        $ requirements add requests /path/to/requirements.txt
+        $ requirements add requests ./requirements.txt ./dev-requirements.txt
+
+    Add to directories:
+        $ requirements add requests /project/backend
+        $ requirements add requests /project  # Adds to all requirements.txt in directory
+
+    Add to multiple locations:
+        $ requirements add requests /backend /frontend /shared
+
+    \b
+    Args:
+    package_name: Name of the package to add.
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+    preview: If True, shows changes without saving files.
+
+    \b
+    Note:
+    - Package is added without version specifier (no "==1.0.0" suffix)
+    - If package already exists, a message is displayed and no changes are made
+    - Package names are checked case-insensitively (won't add Django if django exists)
+    - Files are automatically sorted after addition while preserving comments
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    - Use 'requirements update' command to add packages with specific versions
+    """
 
     if preview:
         click.echo("Previewing changes")
@@ -380,18 +487,52 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
                 click.echo(f"Updated {requirements_file}")
 
 
-remove_help = (
-    "Remove a package from requirements.txt files\n\nExample: "
-    "requirements remove <package-name> /path/to/requirements.txt"
-)
-
-
-@cli.command(name="remove", help=remove_help)
+@cli.command(name="remove")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
 def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
-    """Remove a package from requirements.txt files"""
+    """Remove a package from requirements.txt files.
+
+    Removes the specified package from one or more requirements.txt files if it exists.
+    The file is automatically sorted after removal while preserving comments and structure.
+
+    \b
+    Examples:
+    Basic package removal:
+        $ requirements remove requests
+        $ requirements remove django
+
+    Preview changes without saving:
+        $ requirements remove requests --preview
+
+    Remove from specific files:
+        $ requirements remove requests /path/to/requirements.txt
+        $ requirements remove requests ./requirements.txt ./dev-requirements.txt
+
+    Remove from directories:
+        $ requirements remove requests /project/backend
+        $ requirements remove requests /project  # Removes from all requirements.txt in directory
+
+    Remove from multiple locations:
+        $ requirements remove requests /backend /frontend /shared
+
+    \b
+    Args:
+    package_name: Name of the package to remove (case-insensitive).
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+    preview: If True, shows changes without saving files.
+
+    \b
+    Note:
+    - Package names are matched case-insensitively (Django, django, DJANGO all match)
+    - Handles package name variations with hyphens/underscores automatically
+    - Removes the entire line including version specifiers and inline comments
+    - If package doesn't exist, no error is raised and no changes are made
+    - Files are automatically sorted after removal while preserving comments
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    - Works with packages that have version specifiers, extras, or URLs
+    """
 
     if preview:
         click.echo("Previewing changes")
@@ -420,17 +561,51 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             click.echo(f"Removed {package_name} from {requirements_file}")
 
 
-sort_help = (
-    "Sort requirements.txt files in place\n\nExample: "
-    "requirements sort /path/to/requirements.txt"
-)
-
-
-@cli.command(name="sort", help=sort_help)
+@cli.command(name="sort")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
 def sort_requirements(paths: tuple[str], preview: bool) -> None:
-    """Sort requirements.txt files in place"""
+    """Sort requirements.txt files alphabetically.
+
+    Sorts package entries in requirements.txt files while intelligently preserving
+    comments and file structure. Comments stay associated with their sections,
+    and blank lines separate logical sections.
+
+    \b
+    Examples:
+    Sort current directory:
+        $ requirements sort
+
+    Preview changes without saving:
+        $ requirements sort --preview
+
+    Sort specific files:
+        $ requirements sort /path/to/requirements.txt
+        $ requirements sort ./requirements.txt ./dev-requirements.txt
+
+    Sort directories:
+        $ requirements sort /project/backend
+        $ requirements sort /project  # Sorts all requirements.txt in directory
+
+    Sort multiple locations:
+        $ requirements sort /backend /frontend /shared
+
+    \b
+    Args:
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+    preview: If True, shows changes without saving files.
+
+    \b
+    Note:
+    - Preserves comments and their association with nearby packages
+    - Maintains blank lines that separate logical sections
+    - Sorts packages alphabetically within each section
+    - Comments at the top of sections stay at the top
+    - Inline comments (after package names) are preserved
+    - Uses locale-aware sorting with UTF-8 encoding
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    - If file is already sorted, displays confirmation message
+    """
 
     if preview:
         click.echo("Previewing changes")
@@ -454,16 +629,43 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
             click.echo(f"{requirements_file} is already sorted")
 
 
-cat_help = (
-    "Cat the contents of requirements.txt files\n\nExample: "
-    "requirements cat /path/to/requirements.txt"
-)
-
-
-@cli.command(name="cat", help=cat_help)
+@cli.command(name="cat")
 @click.argument("paths", nargs=-1)
 def cat_requirements(paths: tuple[str]) -> None:
-    """Cat the contents of all requirements.txt files in a given path(s)"""
+    """Display the contents of requirements.txt files.
+
+    Shows the content of one or more requirements.txt files with clear file headers.
+    Useful for quickly viewing dependencies across multiple files or projects.
+
+    \b
+    Examples:
+    Display current directory files:
+        $ requirements cat
+
+    Display specific files:
+        $ requirements cat /path/to/requirements.txt
+        $ requirements cat ./requirements.txt ./dev-requirements.txt
+
+    Display files in directories:
+        $ requirements cat /project/backend
+        $ requirements cat /project  # Shows all requirements.txt in directory
+
+    Display files in multiple locations:
+        $ requirements cat /backend /frontend /shared
+
+    \b
+    Args:
+    paths: Optional paths to requirements files or directories. Defaults to current directory.
+
+    \b
+    Note:
+    - Each file is displayed with a colored header showing the file path
+    - Multiple files are separated by blank lines for readability
+    - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
+    - Shows files exactly as they exist (no sorting or modification)
+    - If no requirements.txt files are found, no output is produced
+    - Useful for debugging dependency issues across multiple files
+    """
 
     resolved_paths = resolve_paths(paths)
 
