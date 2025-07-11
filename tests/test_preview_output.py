@@ -12,7 +12,7 @@ def runner():
     return CliRunner(mix_stderr=False)
 
 
-def create_requirements_file(base_path: Path, subdir: str, content: str):
+def create_requirements_file(base_path: Path, subdir: str, content: str) -> Path:
     """Create a requirements.txt file with given content."""
     project_dir = base_path / subdir
     project_dir.mkdir(exist_ok=True)

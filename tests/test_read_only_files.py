@@ -14,7 +14,7 @@ def runner():
 
 def create_requirements_file(
     base_path: Path, subdir: str, content: str, read_only: bool = False
-):
+) -> Path:
     """Create a requirements.txt file with given content, optionally read-only."""
     project_dir = base_path / subdir
     project_dir.mkdir(exist_ok=True)

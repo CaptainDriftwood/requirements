@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 
-def get_git_clean_files():
+def get_git_clean_files() -> list[str]:
     """Get list of files that would be removed by git clean -fdx"""
     try:
         # Use git clean -ndx to get a dry run of what would be removed
@@ -34,7 +34,7 @@ def get_git_clean_files():
         sys.exit(1)
 
 
-def should_preserve_path(path):
+def should_preserve_path(path: str) -> bool:
     """Check if a path should be preserved based on protected directories"""
     protected_dirs = {'.claude', '.venv', '.idea', '.run'}
     
@@ -53,7 +53,7 @@ def should_preserve_path(path):
     return False
 
 
-def prompt_user(file_path):
+def prompt_user(file_path: str) -> bool:
     """Prompt user for confirmation to remove a file"""
     while True:
         response = input(f"Remove {file_path}? [y/n]: ").strip().lower()
@@ -65,7 +65,7 @@ def prompt_user(file_path):
             print("Please enter 'y' or 'n'")
 
 
-def remove_file_or_directory(path):
+def remove_file_or_directory(path: str) -> None:
     """Remove a file or directory"""
     path_obj = Path(path)
     
@@ -78,7 +78,7 @@ def remove_file_or_directory(path):
         path_obj.unlink()
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Clean untracked files from the repository, preserving specific directories'
     )
