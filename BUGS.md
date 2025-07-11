@@ -223,12 +223,30 @@ DEFAULT_LOCALE = "en_US.UTF-8"  # May not be available on all systems
 
 **Recommendation:** Use system default locale as fallback.
 
-### 11. No Version Specifier Validation
+### ~~11. No Version Specifier Validation~~ ✅ FIXED
 **Location:** `update_package()` function  
 **Severity:** Low  
-**Description:** Invalid version strings aren't validated before use.
+**Description:** ~~Invalid version strings aren't validated before use.~~ **RESOLVED**
 
-**Impact:** Could result in malformed requirements.txt entries.
+**Fix Applied:** Added proper version specifier validation using Python's `packaging` library. Created `validate_version_specifier()` function that validates version specifiers according to PEP 440 standards.
+
+```python
+# Fixed code:
+def validate_version_specifier(version_specifier: str) -> str:
+    """Validate and normalize a version specifier"""
+    if not version_specifier.startswith(("==", "!=", ">=", "<=", ">", "<", "~=")):
+        version_specifier = f"=={version_specifier}"
+    
+    try:
+        SpecifierSet(version_specifier)
+        return version_specifier
+    except InvalidSpecifier as e:
+        raise click.ClickException(f"Invalid version specifier '{version_specifier}': {e}") from e
+```
+
+**Test Coverage:** Added comprehensive tests covering both valid and invalid version specifiers including edge cases like malformed versions, empty operators, and complex version constraints. All 134 tests pass.
+
+**Impact:** ~~Could result in malformed requirements.txt entries.~~ **RESOLVED** - Invalid version specifiers now properly fail with clear error messages, preventing malformed entries.
 
 ### 12. Silent Locale Failures
 **Location:** `src/main.py:38-42` in `sort_packages()`  
@@ -260,8 +278,9 @@ except locale.Error as e:
 5. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
 6. ~~Standardize newline handling (Medium)~~ ✅ **COMPLETED**
 7. ~~Fix case sensitivity in package matching (Medium)~~ ✅ **COMPLETED**
-8. Add atomic file operations (Medium)
-9. Address remaining low-priority issues as time permits
+8. ~~Add version specifier validation (Low)~~ ✅ **COMPLETED**
+9. Add atomic file operations (Medium)
+10. Address remaining low-priority issues as time permits
 
 ---
 

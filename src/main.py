@@ -9,6 +9,7 @@ from functools import cmp_to_key
 from typing import Callable, Optional
 
 import click
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 DEFAULT_LOCALE = "en_US.UTF-8"
 
@@ -200,6 +201,23 @@ def check_file_writable(file_path: pathlib.Path, preview: bool = False) -> bool:
     return True
 
 
+def validate_version_specifier(version_specifier: str) -> str:
+    """Validate and normalize a version specifier"""
+    # If the version specifier does not start with ==, !=, >=, <=, >, <, or ~=,
+    # default to ==.
+    if not version_specifier.startswith(("==", "!=", ">=", "<=", ">", "<", "~=")):
+        version_specifier = f"=={version_specifier}"
+
+    try:
+        # Use packaging library to validate the version specifier
+        SpecifierSet(version_specifier)
+        return version_specifier
+    except InvalidSpecifier as e:
+        raise click.ClickException(
+            f"Invalid version specifier '{version_specifier}': {e}"
+        ) from e
+
+
 def check_package_name(package_name: str, line: str) -> bool:
     """Determine if a line in a requirements.txt file contains the given package name"""
 
@@ -259,10 +277,8 @@ def update_package(
 ) -> None:
     """Replace a package name in requirements.txt files"""
 
-    # If the version specifier does not start with ==, !=, >=, <=, >, <, or ~=,
-    # default to ==.
-    if not version_specifier.startswith(("==", "!=", ">=", "<=", ">", "<", "~=")):
-        version_specifier = f"=={version_specifier}"
+    # Validate and normalize the version specifier
+    version_specifier = validate_version_specifier(version_specifier)
 
     if preview:
         click.echo("Previewing changes")

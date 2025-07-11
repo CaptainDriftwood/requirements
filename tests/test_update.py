@@ -40,7 +40,7 @@ class TestPreviewChanges:
             update_package,
             [
                 "pytest",
-                "pytest~=6.0.0",
+                "~=6.0.0",
                 multiple_nested_directories,
                 "--preview",
             ],
@@ -273,3 +273,78 @@ def test_update_package_with_inline_comment_preview_mode(
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()
     assert actual_content == initial_content
+
+
+def test_update_package_with_invalid_version_specifier(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test updating a package with invalid version specifier fails gracefully"""
+    # Create a requirements.txt file
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+    requirements_file.write_text("requests==2.26.0\n")
+
+    # Test with various invalid version specifiers
+    invalid_versions = [
+        "==not.a.version",  # Invalid version format
+        "==1.2.3..4",  # Double dots
+        ">=",  # Missing version
+        "~=abc",  # Non-numeric version
+        "==1.2.3-",  # Trailing dash
+        ">=1.2.3+",  # Trailing plus
+    ]
+
+    for invalid_version in invalid_versions:
+        result = cli_runner.invoke(
+            update_package,
+            ["requests", invalid_version, str(requirements_dir)],
+        )
+
+        # Should exit with error for invalid version specifiers
+        assert result.exit_code != 0, (
+            f"Expected failure for invalid version: {invalid_version}"
+        )
+        assert "Invalid version specifier" in result.output or "Error" in result.output
+
+
+def test_update_package_with_valid_version_specifiers(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test updating a package with various valid version specifiers"""
+    # Create a requirements.txt file
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+
+    # Test with various valid version specifiers
+    valid_versions = [
+        "==2.28.0",  # Basic equality
+        ">=2.28.0",  # Greater than or equal
+        "~=2.28.0",  # Compatible release
+        "!=2.27.0",  # Not equal
+        ">=1.0.0,<3.0.0",  # Multiple constraints
+        "==2.28.0a1",  # Alpha release
+        "==2.28.0b1",  # Beta release
+        "==2.28.0rc1",  # Release candidate
+        "==2.28.0.post1",  # Post release
+        ">=1.0.dev0",  # Dev release
+    ]
+
+    for valid_version in valid_versions:
+        # Reset file content for each test
+        requirements_file.write_text("requests==2.26.0\n")
+
+        result = cli_runner.invoke(
+            update_package,
+            ["requests", valid_version, str(requirements_dir)],
+        )
+
+        # Should succeed for valid version specifiers
+        assert result.exit_code == 0, (
+            f"Expected success for valid version: {valid_version}"
+        )
+
+        # Verify the file was updated correctly
+        updated_content = requirements_file.read_text()
+        assert f"requests{valid_version}" in updated_content
