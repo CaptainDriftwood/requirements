@@ -160,7 +160,7 @@ def update_package(
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text().splitlines()
+        contents = requirements_file.read_text(encoding='utf-8').splitlines()
         modified = False
 
         for index, line in enumerate(contents):
@@ -174,7 +174,7 @@ def update_package(
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(contents).strip() + "\n")
             elif check_file_writable(requirements_file, preview):
-                requirements_file.write_text("\n".join(contents).strip() + "\n")
+                requirements_file.write_text("\n".join(contents).strip() + "\n", encoding='utf-8')
                 click.echo(f"Updated {requirements_file}")
 
 
@@ -196,7 +196,7 @@ def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        for line in requirements_file.read_text().splitlines():
+        for line in requirements_file.read_text(encoding='utf-8').splitlines():
             if check_package_name(package_name, line):
                 click.echo(requirements_file)
                 if verbose:
@@ -222,7 +222,7 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text().splitlines()
+        contents = requirements_file.read_text(encoding='utf-8').splitlines()
         modified = False
 
         for line in contents:
@@ -239,7 +239,7 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(contents).strip() + "\n")
             elif check_file_writable(requirements_file, preview):
-                requirements_file.write_text("\n".join(contents).strip() + "\n")
+                requirements_file.write_text("\n".join(contents).strip() + "\n", encoding='utf-8')
                 click.echo(f"Updated {requirements_file}")
 
 
@@ -262,7 +262,7 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text().splitlines()
+        contents = requirements_file.read_text(encoding='utf-8').splitlines()
         updated_contents = [
             line for line in contents if not check_package_name(package_name, line)
         ]
@@ -277,7 +277,7 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
             and not preview
             and check_file_writable(requirements_file, preview)
         ):
-            requirements_file.write_text("\n".join(updated_contents) + "\n")
+            requirements_file.write_text("\n".join(updated_contents) + "\n", encoding='utf-8')
             click.echo(f"Removed {package_name} from {requirements_file}")
 
 
@@ -299,12 +299,12 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text().splitlines()
+        contents = requirements_file.read_text(encoding='utf-8').splitlines()
         new_contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
         if contents != new_contents:
             if not preview:
                 if check_file_writable(requirements_file, preview):
-                    requirements_file.write_text("\n".join(new_contents).strip() + "\n")
+                    requirements_file.write_text("\n".join(new_contents).strip() + "\n", encoding='utf-8')
                     click.echo(f"Sorted {requirements_file}")
             else:
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
@@ -328,7 +328,7 @@ def cat_requirements(paths: tuple[str]) -> None:
 
     for requirements_file in gather_requirements_files(resolved_paths):
         click.echo(click.style(requirements_file, fg="cyan", bold=True))
-        click.echo(requirements_file.read_text().strip())
+        click.echo(requirements_file.read_text(encoding='utf-8').strip())
         click.echo()
 
 

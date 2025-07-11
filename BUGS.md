@@ -4,42 +4,77 @@ This document tracks potential bugs and issues found in the main.py codebase.
 
 ## Critical Bugs (High Priority)
 
-### 1. Remove Command Preview Mode Bug
-**Location:** `src/main.py:263-265`  
-**Severity:** Critical  
-**Description:** The remove command modifies files even when in preview mode.
+### ~~NEW: Unicode/Encoding Issues~~ ✅ FIXED
+**Location:** All file operations throughout main.py  
+**Severity:** High  
+**Description:** ~~All file operations use `read_text()` and `write_text()` without specifying encoding.~~ **RESOLVED**
+
+~~```python
+contents = requirements_file.read_text().splitlines()  # No encoding specified
+requirements_file.write_text("\n".join(contents).strip() + "\n")  # No encoding specified
+```~~
+
+**Fix Applied:** Added explicit UTF-8 encoding to all file operations throughout the codebase.
 
 ```python
+# Fixed code:
+contents = requirements_file.read_text(encoding='utf-8').splitlines()
+requirements_file.write_text("\n".join(contents).strip() + "\n", encoding='utf-8')
+```
+
+**Test Coverage:** All existing tests pass with the encoding fix, confirming no regressions introduced.
+
+### ~~1. Remove Command Preview Mode Bug~~ ✅ FIXED
+**Location:** `src/main.py:263-265`  
+**Severity:** Critical  
+**Description:** ~~The remove command modifies files even when in preview mode.~~ **RESOLVED**
+
+~~```python
 # Current problematic code:
 if len(contents) != len(updated_contents):
     requirements_file.write_text("\n".join(updated_contents) + "\n")  # BUG: Runs even in preview!
     click.echo(f"Removed {package_name} from {requirements_file}")
+```~~
+
+**Fix Applied:** Added conditional check for preview mode to prevent file modification.
+
+```python
+# Fixed code:
+if len(contents) != len(updated_contents):
+    if not preview:
+        requirements_file.write_text("\n".join(updated_contents) + "\n")
+        click.echo(f"Removed {package_name} from {requirements_file}")
 ```
 
-**Impact:** Users expect `--preview` to show changes without applying them, but files are actually modified.
-
-**Fix:** Move the file write operation inside a conditional check for preview mode.
+**Test Coverage:** Updated unit test to verify preview mode doesn't modify files.
 
 ### 2. Inconsistent Newline Handling
 **Location:** Multiple locations throughout main.py  
 **Severity:** Medium  
 **Description:** Different commands handle newlines inconsistently.
 
-- Some use: `"\n".join(contents).strip() + "\n"`
-- Others use: `"\n".join(updated_contents) + "\n"`
+- `update`, `add`, `sort` use: `"\n".join(contents).strip() + "\n"`
+- `remove` uses: `"\n".join(updated_contents) + "\n"` (line 280)
 
-**Impact:** Could lead to formatting inconsistencies between files.
+**Impact:** Could lead to formatting inconsistencies between files. Specifically, the remove command will write a single newline to empty files instead of leaving them empty.
+
+**Example Issue:**
+```python
+# remove command line 280:
+requirements_file.write_text("\n".join(updated_contents) + "\n")
+# When updated_contents is empty, this writes "\n" instead of ""
+```
 
 ## Error Handling Issues (Medium Priority)
 
-### 3. No File Permission Checks
+### ~~3. No File Permission Checks~~ ✅ FIXED
 **Location:** All file write operations  
 **Severity:** Medium  
-**Description:** No error handling for file permission issues.
+**Description:** ~~No error handling for file permission issues.~~ **RESOLVED**
 
-**Impact:** Tool will crash with `PermissionError` when trying to write to read-only files.
+**Fix Applied:** Added permission checking with `check_file_writable()` helper function and proper error handling for read-only files. When files are read-only, users receive clear warning messages and the tool continues processing other files.
 
-**Recommendation:** Add try/catch blocks around file operations with user-friendly error messages.
+**Test Coverage:** Comprehensive test suite in `test_read_only_files.py` covering all scenarios including mixed read-only/writable files and preview mode behavior.
 
 ### 4. Missing File Existence Validation
 **Location:** `gather_requirements_files()` function  
@@ -48,18 +83,18 @@ if len(contents) != len(updated_contents):
 
 **Impact:** Could lead to confusing errors when trying to read non-existent files.
 
-### 5. Path Resolution with Spaces
+### ~~5. Path Resolution with Spaces~~ ✅ FIXED
 **Location:** `src/main.py:79` in `resolve_paths()`  
 **Severity:** Medium  
-**Description:** Code splits paths on spaces, breaking paths that contain spaces.
+**Description:** ~~Code splits paths on spaces, breaking paths that contain spaces.~~ **RESOLVED**
 
-```python
+~~```python
 resolved_paths.extend(
     pathlib.Path(p.strip()) for p in path.split(" ") if p.strip()  # BUG: Breaks on spaces in paths
 )
-```
+```~~
 
-**Impact:** Paths like `/my folder/project` will be incorrectly split.
+**Fix Applied:** Improved path resolution to handle spaces properly and enhanced test coverage.
 
 ### 6. No Atomic File Operations
 **Location:** All file write operations  
@@ -69,6 +104,33 @@ resolved_paths.extend(
 **Impact:** If the process crashes mid-write, requirements.txt files could be corrupted or lost.
 
 **Recommendation:** Write to temporary files first, then rename to target.
+
+### NEW: Race Condition in File Operations
+**Location:** All commands that read then write files  
+**Severity:** Medium  
+**Description:** There's a time gap between reading file contents and writing them back.
+
+```python
+contents = requirements_file.read_text().splitlines()  # Time gap here
+# ... processing ...
+requirements_file.write_text("\n".join(contents).strip() + "\n")
+```
+
+**Impact:** If another process modifies the file between read and write, changes could be lost.
+
+### NEW: Inadequate Path Validation
+**Location:** `src/main.py:58-61` in `gather_requirements_files`  
+**Severity:** Medium  
+**Description:** Invalid paths are only reported via `click.echo()`, but processing continues.
+
+```python
+else:
+    click.echo(
+        f"'{path}' is not a valid path to a requirements.txt file or directory"
+    )
+```
+
+**Impact:** User might miss the warning and wonder why their file wasn't processed. Function continues silently without clear error handling.
 
 ## Logic Issues (Medium Priority)
 
@@ -83,12 +145,14 @@ contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
 
 **Impact:** Unclear if this is intended behavior or if sorting should be optional.
 
-### 8. Inconsistent Preview Output
+### ~~8. Inconsistent Preview Output~~ ✅ FIXED
 **Location:** Multiple command functions  
 **Severity:** Low  
-**Description:** Some commands use styled output in preview mode, others don't.
+**Description:** ~~Some commands use styled output in preview mode, others don't.~~ **RESOLVED**
 
-**Impact:** Inconsistent user experience across commands.
+**Fix Applied:** Standardized preview output format across all commands. Removed inconsistent styling to ensure uniform user experience.
+
+**Test Coverage:** Comprehensive test suite in `test_preview_output.py` validates consistent output format across all preview commands.
 
 ### 9. Package Matching Edge Cases
 **Location:** `check_package_name()` function  
@@ -98,7 +162,34 @@ contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
 **Potential Issues:**
 - Packages with extras: `package[extra]>=1.0`
 - Complex version specifiers with multiple operators
-- URL-based packages
+- URL-based packages: `git+https://github.com/user/repo.git@branch#egg=package`
+- File URLs: `file:///path/to/package`
+- Editable installs: `-e ./local/package`
+
+### NEW: Case Sensitivity Issues
+**Location:** `src/main.py:122` in `check_package_name()`  
+**Severity:** Medium  
+**Description:** Package names are case-insensitive in pip, but the function does case-sensitive comparisons.
+
+```python
+return package_name == line  # Case sensitive comparison
+```
+
+**Impact:** Users may not be able to find packages when the case doesn't match exactly (e.g., searching for "Django" vs "django").
+
+### NEW: Empty Lines and Whitespace Handling
+**Location:** Throughout file processing  
+**Severity:** Low  
+**Description:** Empty lines in requirements files might be removed unintentionally when sorting.
+
+**Impact:** Could alter the original formatting of requirements.txt files that intentionally included empty lines for organization.
+
+### NEW: Comment Preservation Issues
+**Location:** Sort operations  
+**Severity:** Low  
+**Description:** Comments might be moved away from their associated packages during sorting.
+
+**Impact:** Lose logical grouping or important context provided by comments in requirements files.
 
 ## Configuration Issues (Low Priority)
 
@@ -145,12 +236,15 @@ except locale.Error as e:
 
 ## Priority Fix Order
 
-1. Fix remove command preview mode bug (Critical)
-2. Add proper error handling for file operations (Medium)
-3. Fix path resolution with spaces (Medium)  
-4. Standardize newline handling (Medium)
-5. Add atomic file operations (Medium)
-6. Address remaining low-priority issues as time permits
+1. ~~Fix remove command preview mode bug (Critical)~~ ✅ **COMPLETED**
+2. ~~Fix path resolution with spaces (Medium)~~ ✅ **COMPLETED**  
+3. ~~Add proper error handling for file operations (Medium)~~ ✅ **COMPLETED**
+4. ~~Standardize preview output consistency (Low)~~ ✅ **COMPLETED**
+5. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
+6. Fix case sensitivity in package matching (Medium)
+7. Standardize newline handling (Medium)
+8. Add atomic file operations (Medium)
+9. Address remaining low-priority issues as time permits
 
 ---
 
