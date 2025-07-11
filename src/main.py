@@ -203,7 +203,11 @@ def check_file_writable(file_path: pathlib.Path, preview: bool = False) -> bool:
 def check_package_name(package_name: str, line: str) -> bool:
     """Determine if a line in a requirements.txt file contains the given package name"""
 
-    if package_name == line:
+    # Convert to lowercase for case-insensitive comparison (pip is case-insensitive)
+    package_name_lower = package_name.lower()
+    line_lower = line.lower()
+
+    if package_name_lower == line_lower:
         return True
 
     # If line is commented out, ignore it.
@@ -211,21 +215,21 @@ def check_package_name(package_name: str, line: str) -> bool:
         return False
 
     # We make the package name and the line match in terms of dashes and underscores.
-    if "-" in package_name:
-        line = line.replace("_", "-")
-    if "_" in package_name:
-        line = line.replace("-", "_")
+    if "-" in package_name_lower:
+        line_lower = line_lower.replace("_", "-")
+    if "_" in package_name_lower:
+        line_lower = line_lower.replace("-", "_")
 
     # If the line is a package that is being referenced by a local path, we need to
     # check the last part of the path to see if it matches the package name.
-    if line.startswith(("./", "../")):
-        return package_name in line.split("/")[-1]
+    if line_lower.startswith(("./", "../")):
+        return package_name_lower in line_lower.split("/")[-1]
 
     # Finally, we remove any sort of version specifier from the line and then check
     # if the package name matches.
-    line = re.split(r"~=|==|>=|<=|>|<|!=", line)[0].strip()
+    line_lower = re.split(r"~=|==|>=|<=|>|<|!=", line_lower)[0].strip()
 
-    return package_name == line
+    return package_name_lower == line_lower
 
 
 @click.group(

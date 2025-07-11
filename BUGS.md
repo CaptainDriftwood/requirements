@@ -166,16 +166,26 @@ contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
 - File URLs: `file:///path/to/package`
 - Editable installs: `-e ./local/package`
 
-### NEW: Case Sensitivity Issues
-**Location:** `src/main.py:122` in `check_package_name()`  
+### ~~NEW: Case Sensitivity Issues~~ ✅ FIXED
+**Location:** `src/main.py:203` in `check_package_name()`  
 **Severity:** Medium  
-**Description:** Package names are case-insensitive in pip, but the function does case-sensitive comparisons.
+**Description:** ~~Package names are case-insensitive in pip, but the function does case-sensitive comparisons.~~ **RESOLVED**
+
+~~```python
+return package_name == line  # Case sensitive comparison
+```~~
+
+**Fix Applied:** Modified `check_package_name()` to perform case-insensitive comparisons by converting both package names and lines to lowercase before comparison.
 
 ```python
-return package_name == line  # Case sensitive comparison
+# Fixed code:
+package_name_lower = package_name.lower()
+line_lower = line.lower()
+# ... all comparisons now use lowercase versions
+return package_name_lower == line_lower
 ```
 
-**Impact:** Users may not be able to find packages when the case doesn't match exactly (e.g., searching for "Django" vs "django").
+**Test Coverage:** Added comprehensive test cases covering various case combinations including "Django" vs "django", "REQUESTS" vs "requests", and mixed case scenarios with version specifiers. All 132 tests pass.
 
 ### NEW: Empty Lines and Whitespace Handling
 **Location:** Throughout file processing  
@@ -249,7 +259,7 @@ except locale.Error as e:
 4. ~~Standardize preview output consistency (Low)~~ ✅ **COMPLETED**
 5. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
 6. ~~Standardize newline handling (Medium)~~ ✅ **COMPLETED**
-7. Fix case sensitivity in package matching (Medium)
+7. ~~Fix case sensitivity in package matching (Medium)~~ ✅ **COMPLETED**
 8. Add atomic file operations (Medium)
 9. Address remaining low-priority issues as time permits
 

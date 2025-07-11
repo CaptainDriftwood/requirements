@@ -101,6 +101,16 @@ class TestResolvePathsFunction:
         ("example", "example[extra]==1.2.3", False),
         ("example_package", "example-package[extra]>=1.2.3", False),
         ("example-package", "example_package[extra]==1.2.3", False),
+        # Case sensitivity tests (should be case-insensitive like pip)
+        ("Django", "django", True),
+        ("django", "Django", True),
+        ("REQUESTS", "requests", True),
+        ("requests", "REQUESTS", True),
+        ("Flask-RESTful", "flask-restful", True),
+        ("flask-restful", "Flask-RESTful", True),
+        ("Django", "django==3.2.0", True),
+        ("django", "Django>=3.2.0", True),
+        ("REQUESTS", "requests==2.26.0", True),
     ],
 )
 def test_check_package_name(package_name: str, line: str, expected: bool) -> None:
