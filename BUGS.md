@@ -48,22 +48,22 @@ if len(contents) != len(updated_contents):
 
 **Test Coverage:** Updated unit test to verify preview mode doesn't modify files.
 
-### 2. Inconsistent Newline Handling
+### ~~2. Inconsistent Newline Handling~~ ✅ FIXED
 **Location:** Multiple locations throughout main.py  
 **Severity:** Medium  
-**Description:** Different commands handle newlines inconsistently.
+**Description:** ~~Different commands handle newlines inconsistently.~~ **RESOLVED**
 
-- `update`, `add`, `sort` use: `"\n".join(contents).strip() + "\n"`
-- `remove` uses: `"\n".join(updated_contents) + "\n"` (line 280)
+~~- `update`, `add`, `sort` use: `"\n".join(contents).strip() + "\n"`
+- `remove` uses: `"\n".join(updated_contents) + "\n"` (line 280)~~
 
-**Impact:** Could lead to formatting inconsistencies between files. Specifically, the remove command will write a single newline to empty files instead of leaving them empty.
+**Fix Applied:** Standardized newline handling across all commands by adding `.strip()` to the remove command.
 
-**Example Issue:**
 ```python
-# remove command line 280:
-requirements_file.write_text("\n".join(updated_contents) + "\n")
-# When updated_contents is empty, this writes "\n" instead of ""
+# Fixed code:
+requirements_file.write_text("\n".join(updated_contents).strip() + "\n", encoding="utf-8")
 ```
+
+**Test Coverage:** All existing tests pass, confirming consistent behavior across all commands.
 
 ## Error Handling Issues (Medium Priority)
 
@@ -241,8 +241,8 @@ except locale.Error as e:
 3. ~~Add proper error handling for file operations (Medium)~~ ✅ **COMPLETED**
 4. ~~Standardize preview output consistency (Low)~~ ✅ **COMPLETED**
 5. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
-6. Fix case sensitivity in package matching (Medium)
-7. Standardize newline handling (Medium)
+6. ~~Standardize newline handling (Medium)~~ ✅ **COMPLETED**
+7. Fix case sensitivity in package matching (Medium)
 8. Add atomic file operations (Medium)
 9. Address remaining low-priority issues as time permits
 
