@@ -67,3 +67,67 @@ class TestAddPackage:
                 / "requirements.txt"
             ).read_text()
             assert "requests" in contents
+
+
+def test_add_package_preserves_inline_comments(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test that adding a package preserves existing inline comments"""
+    # Create a requirements.txt file with inline comments
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+
+    # Write initial content with inline comments
+    requirements_file.write_text(
+        "django==3.2.0  # Web framework\npytest==6.2.5  # Testing framework\n"
+    )
+
+    # Add a new package
+    result = cli_runner.invoke(
+        add_package,
+        ["requests", str(requirements_dir)],
+    )
+
+    assert result.exit_code == 0
+    assert f"Updated {requirements_file}" in result.output
+
+    # Check that the file was updated correctly and comments were preserved
+    updated_content = requirements_file.read_text()
+    assert updated_content == (
+        "django==3.2.0  # Web framework\npytest==6.2.5  # Testing framework\nrequests\n"
+    )
+
+
+def test_add_package_preserves_inline_comments_preview_mode(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test that adding a package preserves inline comments in preview mode"""
+    # Create a requirements.txt file with inline comments
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+
+    # Write initial content with inline comments
+    initial_content = (
+        "django==3.2.0  # Web framework\npytest==6.2.5  # Testing framework\n"
+    )
+    requirements_file.write_text(initial_content)
+
+    # Add a new package in preview mode
+    result = cli_runner.invoke(
+        add_package,
+        ["requests", str(requirements_dir), "--preview"],
+    )
+
+    assert result.exit_code == 0
+    assert "Previewing changes" in result.output
+
+    # Check that preview shows the correct output with preserved comments
+    assert "django==3.2.0  # Web framework" in result.output
+    assert "pytest==6.2.5  # Testing framework" in result.output
+    assert "requests" in result.output
+
+    # Verify that the file was NOT modified (preview mode)
+    actual_content = requirements_file.read_text()
+    assert actual_content == initial_content

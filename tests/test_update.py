@@ -203,3 +203,73 @@ def test_update_with_aws_sam_directory(
     assert (
         sam_build_directory / "HelloWorldFunction" / "requirements.txt"
     ).read_text() == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
+
+
+def test_update_package_with_inline_comment(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test updating a package that has an inline comment on the same line"""
+    # Create a requirements.txt file with inline comments
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+
+    # Write initial content with inline comments
+    requirements_file.write_text(
+        "django==3.2.0  # Web framework\n"
+        "requests==2.26.0  # HTTP library\n"
+        "pytest==6.2.5  # Testing framework\n"
+    )
+
+    # Update the requests package to a new version
+    result = cli_runner.invoke(
+        update_package,
+        ["requests", "2.28.0", str(requirements_dir)],
+    )
+
+    assert result.exit_code == 0
+    assert f"Updated {requirements_file}" in result.output
+
+    # Check that the file was updated correctly and comments were preserved
+    updated_content = requirements_file.read_text()
+    assert updated_content == (
+        "django==3.2.0  # Web framework\n"
+        "pytest==6.2.5  # Testing framework\n"
+        "requests==2.28.0  # HTTP library\n"
+    )
+
+
+def test_update_package_with_inline_comment_preview_mode(
+    cli_runner: CliRunner, tmp_path: pathlib.Path
+) -> None:
+    """Test updating a package with inline comment in preview mode"""
+    # Create a requirements.txt file with inline comments
+    requirements_dir = tmp_path / "project"
+    requirements_dir.mkdir()
+    requirements_file = requirements_dir / "requirements.txt"
+
+    # Write initial content with inline comments
+    initial_content = (
+        "django==3.2.0  # Web framework\n"
+        "requests==2.26.0  # HTTP library for APIs\n"
+        "pytest==6.2.5  # Testing framework\n"
+    )
+    requirements_file.write_text(initial_content)
+
+    # Update the requests package in preview mode
+    result = cli_runner.invoke(
+        update_package,
+        ["requests", "2.28.0", str(requirements_dir), "--preview"],
+    )
+
+    assert result.exit_code == 0
+    assert "Previewing changes" in result.output
+
+    # Check that preview shows the correct output
+    assert "django==3.2.0  # Web framework" in result.output
+    assert "pytest==6.2.5  # Testing framework" in result.output
+    assert "requests==2.28.0  # HTTP library for APIs" in result.output
+
+    # Verify that the file was NOT modified (preview mode)
+    actual_content = requirements_file.read_text()
+    assert actual_content == initial_content

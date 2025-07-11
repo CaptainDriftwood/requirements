@@ -271,7 +271,14 @@ def update_package(
 
         for index, line in enumerate(contents):
             if check_package_name(package_name, line):
-                contents[index] = f"{package_name}{version_specifier}"
+                # Preserve inline comments when updating
+                inline_comment = ""
+                if "#" in line and not line.strip().startswith("#"):
+                    # Find the comment part and preserve it
+                    comment_index = line.find("#")
+                    inline_comment = "  " + line[comment_index:]
+
+                contents[index] = f"{package_name}{version_specifier}{inline_comment}"
                 modified = True
                 contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
 
