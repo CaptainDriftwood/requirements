@@ -28,19 +28,125 @@ def set_locale(new_locale: Optional[str] = None) -> Generator[Callable, None, No
         locale.setlocale(locale.LC_COLLATE, current_locale)
 
 
-def sort_packages(packages: list[str], locale_: Optional[str] = None) -> list[str]:
-    """Sort a list of packages using specified locale"""
+def sort_packages(
+    packages: list[str], locale_: Optional[str] = None, preserve_comments: bool = True
+) -> list[str]:
+    """Sort a list of packages using specified locale with optional comment preservation"""
+
+    if not preserve_comments:
+        # Use the original simple sorting behavior
+        if locale_ is None:
+            return sorted(packages)
+        try:
+            with set_locale(locale_) as strcoll:
+                return sorted(packages, key=cmp_to_key(strcoll))
+        except locale.Error as e:
+            logger.warning(
+                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
+            )
+            return sorted(packages)
+
+    # Smart sorting that preserves comment associations
+    return _sort_with_comment_preservation(packages, locale_)
+
+
+def _sort_with_comment_preservation(
+    lines: list[str], locale_: Optional[str] = None
+) -> list[str]:
+    """Sort lines while preserving comment associations and file structure"""
+
+    if not lines:
+        return lines
+
+    # Parse lines into sections and package groups
+    sections = _parse_into_sections(lines)
+
+    # Sort packages within each section while preserving comments
+    sorted_sections = []
+    for section in sections:
+        sorted_sections.append(_sort_section(section, locale_))
+
+    # Rebuild the file
+    result = []
+    for i, section in enumerate(sorted_sections):
+        result.extend(section)
+        # Add blank line between sections (except after the last section)
+        if i < len(sorted_sections) - 1:
+            result.append("")
+
+    return result
+
+
+def _parse_into_sections(lines: list[str]) -> list[list[str]]:
+    """Parse lines into logical sections separated by blank lines"""
+
+    sections = []
+    current_section: list[str] = []
+
+    for line in lines:
+        if line.strip() == "":
+            # Empty line - end current section if it has content
+            if current_section:
+                sections.append(current_section)
+                current_section = []
+        else:
+            current_section.append(line)
+
+    # Add the last section if it has content
+    if current_section:
+        sections.append(current_section)
+
+    return sections
+
+
+def _sort_section(section: list[str], locale_: Optional[str] = None) -> list[str]:
+    """Sort packages within a section while keeping comments at the top"""
+
+    if not section:
+        return section
+
+    # Separate comments from packages
+    comments = []
+    packages = []
+
+    for line in section:
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            comments.append(line)
+        elif stripped:  # Non-empty, non-comment line
+            packages.append(line)
+
+    # Sort packages
+    def get_sort_key(line: str) -> str:
+        # Extract package name for sorting
+        package_name = (
+            line.split("==")[0]
+            .split(">=")[0]
+            .split("<=")[0]
+            .split(">")[0]
+            .split("<")[0]
+            .split("!=")[0]
+            .split("~=")[0]
+            .strip()
+        )
+        return package_name.lower()
 
     if locale_ is None:
-        return sorted(packages)
-    try:
-        with set_locale(locale_) as strcoll:
-            return sorted(packages, key=cmp_to_key(strcoll))
-    except locale.Error as e:
-        logger.warning(
-            f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
-        )
-        return sorted(packages)
+        sorted_packages = sorted(packages, key=get_sort_key)
+    else:
+        try:
+            with set_locale(locale_) as strcoll:
+                sorted_packages = sorted(
+                    packages, key=lambda p: cmp_to_key(strcoll)(get_sort_key(p))
+                )
+        except locale.Error as e:
+            logger.warning(
+                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
+            )
+            sorted_packages = sorted(packages, key=get_sort_key)
+
+    # Combine comments (in original order) + sorted packages
+    return comments + sorted_packages
 
 
 def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:

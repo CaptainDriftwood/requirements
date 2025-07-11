@@ -184,12 +184,19 @@ return package_name == line  # Case sensitive comparison
 
 **Impact:** Could alter the original formatting of requirements.txt files that intentionally included empty lines for organization.
 
-### NEW: Comment Preservation Issues
+### ~~NEW: Comment Preservation Issues~~ ✅ FIXED
 **Location:** Sort operations  
 **Severity:** Low  
-**Description:** Comments might be moved away from their associated packages during sorting.
+**Description:** ~~Comments might be moved away from their associated packages during sorting.~~ **RESOLVED**
 
-**Impact:** Lose logical grouping or important context provided by comments in requirements files.
+**Fix Applied:** Implemented smart sorting that preserves comment associations and file structure by default.
+
+- Comments within sections stay at the top of their section
+- Packages are sorted within each section while maintaining comment context  
+- Sections separated by blank lines are preserved
+- Legacy sorting behavior available with `preserve_comments=False`
+
+**Test Coverage:** Added comprehensive tests for comment preservation including mixed comment patterns and various section structures.
 
 ## Configuration Issues (Low Priority)
 

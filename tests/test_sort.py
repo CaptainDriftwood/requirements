@@ -28,7 +28,7 @@ def test_sort_with_no_locale(packages):
 
 
 def test_sort_with_locale(packages: list[str]) -> None:
-    result = sort_packages(packages, locale_="en_US.UTF-8")
+    result = sort_packages(packages, locale_="en_US.UTF-8", preserve_comments=False)
     assert result == [
         "./some_package",
         "# some comment",
@@ -40,7 +40,7 @@ def test_sort_with_locale(packages: list[str]) -> None:
 
 
 def test_sort_with_uk_locale(packages: list[str]) -> None:
-    result = sort_packages(packages, locale_="en_GB.UTF-8")
+    result = sort_packages(packages, locale_="en_GB.UTF-8", preserve_comments=False)
     assert result == [
         "./some_package",
         "# some comment",
@@ -103,7 +103,7 @@ def test_sort_with_mixed_formats() -> None:
 
 
 def test_sort_with_comments_and_blank_lines() -> None:
-    """Test sorting packages with comments and blank lines"""
+    """Test sorting packages with comments and blank lines (legacy behavior)"""
     packages = [
         "zpackage",
         "# Main dependencies",
@@ -113,8 +113,8 @@ def test_sort_with_comments_and_blank_lines() -> None:
         "boto3",
         "",
     ]
-    result = sort_packages(packages)
-    # Comments and blank lines should be sorted alphabetically too
+    result = sort_packages(packages, preserve_comments=False)
+    # Comments and blank lines should be sorted alphabetically too (legacy behavior)
     expected = [
         "",
         "",
@@ -123,6 +123,67 @@ def test_sort_with_comments_and_blank_lines() -> None:
         "apache",
         "boto3",
         "zpackage",
+    ]
+    assert result == expected
+
+
+def test_sort_with_comment_preservation() -> None:
+    """Test sorting packages while preserving comment associations"""
+    packages = [
+        "# Main dependencies",
+        "zpackage==1.0.0",
+        "apache==2.0.0",
+        "",
+        "# Dev dependencies",
+        "boto3==1.18.0",
+        "zebra==0.5.0",
+    ]
+    result = sort_packages(packages, preserve_comments=True)
+    # Comments should stay with their associated packages
+    expected = [
+        "# Main dependencies",
+        "apache==2.0.0",
+        "zpackage==1.0.0",
+        "",
+        "# Dev dependencies",
+        "boto3==1.18.0",
+        "zebra==0.5.0",
+    ]
+    assert result == expected
+
+
+def test_sort_with_mixed_comments() -> None:
+    """Test sorting with various comment patterns"""
+    packages = [
+        "# Header comment",
+        "",
+        "# Web frameworks",
+        "zflask==2.0.0",
+        "django==3.2.0",
+        "",
+        "# Database",
+        "postgresql==12.0",
+        "# ORM layer",
+        "sqlalchemy==1.4.0",
+        "",
+        "# Utilities",
+        "requests==2.26.0",
+    ]
+    result = sort_packages(packages, preserve_comments=True)
+    expected = [
+        "# Header comment",
+        "",
+        "# Web frameworks",
+        "django==3.2.0",
+        "zflask==2.0.0",
+        "",
+        "# Database",
+        "# ORM layer",
+        "postgresql==12.0",
+        "sqlalchemy==1.4.0",
+        "",
+        "# Utilities",
+        "requests==2.26.0",
     ]
     assert result == expected
 
@@ -173,7 +234,7 @@ def test_sort_with_c_posix_locales(packages: list[str], locale_name: str) -> Non
 )
 def test_sort_with_utf8_locales(packages: list[str], locale_name: str) -> None:
     """Test sorting with UTF-8 locales"""
-    result = sort_packages(packages, locale_=locale_name)
+    result = sort_packages(packages, locale_=locale_name, preserve_comments=False)
     expected = [
         "./some_package",
         "# some comment",
