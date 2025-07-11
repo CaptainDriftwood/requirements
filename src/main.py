@@ -158,19 +158,50 @@ def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
     requirements_files = []
 
     for path in paths:
-        if path.is_file() and path.name == "requirements.txt":
-            requirements_files.append(path)
-        elif path.is_dir():
-            requirements_files.extend(pathlib.Path(path).glob("**/requirements.txt"))
-        else:
-            click.echo(
-                f"'{path}' is not a valid path to a requirements.txt file or directory"
-            )
+        # First check if the path exists
+        if not path.exists():
+            click.echo(f"Error: Path '{path}' does not exist", err=True)
+            continue
 
-    exclusion_pattern = re.compile(r"(venv|\.venv|virtualenv|\.aws-sam)")
-    return [
-        file for file in requirements_files if not exclusion_pattern.search(str(file))
-    ]
+        # Check if it's a requirements.txt file
+        if path.is_file():
+            if path.name == "requirements.txt":
+                requirements_files.append(path)
+            else:
+                click.echo(
+                    f"Error: '{path}' is not a requirements.txt file (found: {path.name})",
+                    err=True,
+                )
+        # Check if it's a directory
+        elif path.is_dir():
+            found_files = list(pathlib.Path(path).glob("**/requirements.txt"))
+            if not found_files:
+                click.echo(
+                    f"Warning: No requirements.txt files found in directory '{path}'",
+                    err=True,
+                )
+            requirements_files.extend(found_files)
+        else:
+            # This shouldn't happen if path.exists() is True, but handle edge cases
+            click.echo(f"Error: '{path}' is neither a file nor a directory", err=True)
+
+    # Filter out virtual environment directories and validate files still exist
+    # Updated pattern to match only directory separators, not anywhere in the path
+    exclusion_pattern = re.compile(r"[/\\](venv|\.venv|virtualenv|\.aws-sam)[/\\]")
+    validated_files = []
+
+    for file in requirements_files:
+        if exclusion_pattern.search(str(file)):
+            continue
+
+        # Double-check file still exists (could have been deleted between glob and now)
+        if not file.exists():
+            click.echo(f"Warning: File '{file}' no longer exists", err=True)
+            continue
+
+        validated_files.append(file)
+
+    return validated_files
 
 
 def resolve_paths(paths: tuple[str, ...]) -> list[pathlib.Path]:
@@ -419,7 +450,7 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     """Add a package to requirements.txt files.
 
     Adds the specified package to one or more requirements.txt files if it doesn't
-    already exist. The package is added without a version specifier and the file
+    already exist. The package is added without a version specifier, and the file
     is automatically sorted after the addition.
 
     \b

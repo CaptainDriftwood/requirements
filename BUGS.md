@@ -76,12 +76,28 @@ requirements_file.write_text("\n".join(updated_contents).strip() + "\n", encodin
 
 **Test Coverage:** Comprehensive test suite in `test_read_only_files.py` covering all scenarios including mixed read-only/writable files and preview mode behavior.
 
-### 4. Missing File Existence Validation
+### ~~4. Missing File Existence Validation~~ ✅ FIXED
 **Location:** `gather_requirements_files()` function  
 **Severity:** Medium  
-**Description:** Function doesn't validate if files exist before returning them.
+**Description:** ~~Function doesn't validate if files exist before returning them.~~ **RESOLVED**
 
-**Impact:** Could lead to confusing errors when trying to read non-existent files.
+**Fix Applied:** Enhanced the `gather_requirements_files()` function with comprehensive file existence validation and proper error handling:
+- Added existence checks for all input paths with clear error messages
+- Validates that files are actually named requirements.txt with specific error for wrong filenames
+- Added warnings for directories with no requirements.txt files
+- Improved virtual environment exclusion pattern to only match directory boundaries (not arbitrary path substrings)
+- Added double-check validation to ensure files still exist before returning them
+- Added graceful handling of race conditions where files are deleted between discovery and access
+
+**Test Coverage:** Created comprehensive test suite in `test_file_existence_validation.py` with 18 tests covering:
+- Non-existent paths and files
+- Wrong filenames with specific error messages
+- Empty directories with appropriate warnings
+- Virtual environment exclusion (venv, .venv, virtualenv, .aws-sam)
+- Edge cases including symlinks, broken symlinks, and race conditions
+- Integration tests verifying all commands handle missing files gracefully
+
+**Impact:** ~~Could lead to confusing errors when trying to read non-existent files.~~ **RESOLVED** - Users now receive clear, actionable error messages for missing files, wrong filenames, and empty directories.
 
 ### ~~5. Path Resolution with Spaces~~ ✅ FIXED
 **Location:** `src/main.py:79` in `resolve_paths()`  
@@ -208,6 +224,27 @@ return package_name_lower == line_lower
 
 **Test Coverage:** Added comprehensive tests for comment preservation including mixed comment patterns and various section structures.
 
+## User Interface Issues (Low Priority)
+
+### NEW: Help Text Formatting Refinement
+**Location:** All command docstrings  
+**Severity:** Low  
+**Description:** While Click docstring formatting has been improved with `\b` markers, the help text layout could be further refined for better readability.
+
+**Current Issues:**
+- Some line wrapping is still uneven in certain terminal widths
+- Examples section could have better visual separation
+- Args and Note sections could be more consistently formatted
+- Consider using Click's advanced formatting features for better presentation
+
+**Impact:** Minor usability issue - help text is functional but could be more polished and professional-looking.
+
+**Future Improvements:**
+- Explore Click's `\f` marker for help text truncation
+- Consider custom help formatters
+- Investigate terminal width-aware formatting
+- Standardize indentation and spacing across all commands
+
 ## Configuration Issues (Low Priority)
 
 ### 10. Hardcoded Locale
@@ -274,13 +311,15 @@ except locale.Error as e:
 1. ~~Fix remove command preview mode bug (Critical)~~ ✅ **COMPLETED**
 2. ~~Fix path resolution with spaces (Medium)~~ ✅ **COMPLETED**  
 3. ~~Add proper error handling for file operations (Medium)~~ ✅ **COMPLETED**
-4. ~~Standardize preview output consistency (Low)~~ ✅ **COMPLETED**
-5. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
-6. ~~Standardize newline handling (Medium)~~ ✅ **COMPLETED**
-7. ~~Fix case sensitivity in package matching (Medium)~~ ✅ **COMPLETED**
-8. ~~Add version specifier validation (Low)~~ ✅ **COMPLETED**
-9. Add atomic file operations (Medium)
-10. Address remaining low-priority issues as time permits
+4. ~~Missing file existence validation (Medium)~~ ✅ **COMPLETED**
+5. ~~Standardize preview output consistency (Low)~~ ✅ **COMPLETED**
+6. ~~Fix Unicode/encoding issues (High Priority)~~ ✅ **COMPLETED**
+7. ~~Standardize newline handling (Medium)~~ ✅ **COMPLETED**
+8. ~~Fix case sensitivity in package matching (Medium)~~ ✅ **COMPLETED**
+9. ~~Add version specifier validation (Low)~~ ✅ **COMPLETED**
+10. Refine help text formatting for better readability (Low)
+11. Add atomic file operations (Medium)
+12. Address remaining low-priority issues as time permits
 
 ---
 

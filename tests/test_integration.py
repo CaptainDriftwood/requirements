@@ -153,7 +153,7 @@ class TestErrorHandling:
         """Test handling invalid file paths"""
         result = cli_runner.invoke(find_package, ["pytest", "/nonexistent/path"])
         assert result.exit_code == 0
-        assert "not a valid path" in result.output
+        assert "does not exist" in result.output
 
     def test_empty_requirements_file(self, cli_runner: CliRunner) -> None:
         """Test handling empty requirements files"""
