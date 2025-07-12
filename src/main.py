@@ -11,41 +11,125 @@ from typing import Callable, Optional
 import click
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
-DEFAULT_LOCALE = "en_US.UTF-8"
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
+def get_system_locale() -> Optional[str]:
+    """
+    Detect the best available locale for sorting, trying multiple fallbacks.
+
+    Returns None if no suitable locale is found, which will cause sorting
+    to fall back to simple ASCII sorting.
+    """
+    # List of locale candidates to try, in order of preference
+    locale_candidates = [
+        # Try system default first
+        locale.getdefaultlocale()[0],
+        # Common UTF-8 locales
+        "C.UTF-8",
+        "en_US.UTF-8",
+        "en_GB.UTF-8",
+        # POSIX fallbacks
+        "C",
+        "POSIX",
+    ]
+
+    for candidate in locale_candidates:
+        if candidate is None:
+            continue
+
+        # If it doesn't end with UTF-8 and isn't C/POSIX, try adding .UTF-8
+        if not candidate.endswith((".UTF-8", ".utf8")) and candidate not in (
+            "C",
+            "POSIX",
+        ):
+            utf8_candidate = f"{candidate}.UTF-8"
+            if _is_locale_available(utf8_candidate):
+                return utf8_candidate
+
+        if _is_locale_available(candidate):
+            return candidate
+
+    # No suitable locale found
+    logger.debug("No suitable locale found, falling back to ASCII sorting")
+    return None
+
+
+def _is_locale_available(locale_name: str) -> bool:
+    """Test if a locale is available on this system."""
+    if not locale_name:
+        return False
+
+    try:
+        # Save current locale
+        current = locale.getlocale(locale.LC_COLLATE)
+        # Try to set the test locale
+        locale.setlocale(locale.LC_COLLATE, locale_name)
+        # Restore original locale
+        locale.setlocale(locale.LC_COLLATE, current)
+        return True
+    except (locale.Error, OSError):
+        return False
+
+
+# Cache the detected system locale to avoid repeated detection
+_SYSTEM_LOCALE = None
+
+
+def get_default_locale() -> Optional[str]:
+    """Get the cached system locale, detecting it if not already cached."""
+    global _SYSTEM_LOCALE
+    if _SYSTEM_LOCALE is None:
+        _SYSTEM_LOCALE = get_system_locale()
+    return _SYSTEM_LOCALE
+
+
 @contextmanager
 def set_locale(new_locale: Optional[str] = None) -> Generator[Callable, None, None]:
-    """Context manager to set the locale"""
+    """
+    Context manager to set the locale with better error handling.
+
+    If new_locale is None or setting it fails, yields a basic comparison function.
+    """
+    if new_locale is None:
+        # No locale specified, use basic string comparison
+        yield lambda a, b: (a > b) - (a < b)
+        return
 
     current_locale = locale.getlocale(locale.LC_COLLATE)
     try:
         locale.setlocale(locale.LC_COLLATE, new_locale)
         yield locale.strcoll
+    except (locale.Error, OSError) as e:
+        # Locale setting failed, fall back to basic comparison
+        logger.debug(f"Failed to set locale '{new_locale}': {e}. Using ASCII sorting.")
+        yield lambda a, b: (a > b) - (a < b)
     finally:
-        locale.setlocale(locale.LC_COLLATE, current_locale)
+        try:
+            locale.setlocale(locale.LC_COLLATE, current_locale)
+        except (locale.Error, OSError):
+            # If we can't restore the original locale, that's not critical
+            logger.debug("Failed to restore original locale")
 
 
 def sort_packages(
     packages: list[str], locale_: Optional[str] = None, preserve_comments: bool = True
 ) -> list[str]:
-    """Sort a list of packages using specified locale with optional comment preservation"""
+    """
+    Sort a list of packages using specified locale with optional comment preservation.
+
+    If locale_ is None, attempts to use the system's best available locale.
+    Falls back to ASCII sorting if no suitable locale is found.
+    """
+    # If no locale specified, try to detect the best available one
+    if locale_ is None:
+        locale_ = get_default_locale()
 
     if not preserve_comments:
         # Use the original simple sorting behavior
-        if locale_ is None:
-            return sorted(packages)
-        try:
-            with set_locale(locale_) as strcoll:
-                return sorted(packages, key=cmp_to_key(strcoll))
-        except locale.Error as e:
-            logger.warning(
-                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
-            )
-            return sorted(packages)
+        with set_locale(locale_) as strcoll:
+            return sorted(packages, key=cmp_to_key(strcoll))
 
     # Smart sorting that preserves comment associations
     return _sort_with_comment_preservation(packages, locale_)
@@ -132,19 +216,11 @@ def _sort_section(section: list[str], locale_: Optional[str] = None) -> list[str
         )
         return package_name.lower()
 
-    if locale_ is None:
-        sorted_packages = sorted(packages, key=get_sort_key)
-    else:
-        try:
-            with set_locale(locale_) as strcoll:
-                sorted_packages = sorted(
-                    packages, key=lambda p: cmp_to_key(strcoll)(get_sort_key(p))
-                )
-        except locale.Error as e:
-            logger.warning(
-                f"Locale error encountered with locale '{locale_}': {e}. Falling back to default sorting."
-            )
-            sorted_packages = sorted(packages, key=get_sort_key)
+    # Use the improved locale handling
+    with set_locale(locale_) as strcoll:
+        sorted_packages = sorted(
+            packages, key=lambda p: cmp_to_key(strcoll)(get_sort_key(p))
+        )
 
     # Combine comments (in original order) + sorted packages
     return comments + sorted_packages
@@ -285,8 +361,16 @@ def check_package_name(package_name: str, line: str) -> bool:
     help="Manage requirements.txt files such as adding, removing, and updating individual packages in bulk"
 )
 @click.version_option(package_name="requirements")
-def cli() -> None:
-    pass
+@click.option(
+    "--locale",
+    help="Locale to use for sorting (e.g., 'en_US.UTF-8', 'C'). If not specified, uses system default.",
+    metavar="LOCALE",
+)
+@click.pass_context
+def cli(ctx: click.Context, locale: Optional[str]) -> None:
+    # Store locale in context for use by subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["locale"] = locale
 
 
 @cli.command(name="update")
@@ -294,7 +378,9 @@ def cli() -> None:
 @click.argument("version_specifier")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.pass_context
 def update_package(
+    ctx: click.Context,
     package_name: str,
     version_specifier: str,
     paths: tuple[str],
@@ -370,7 +456,9 @@ def update_package(
 
                 contents[index] = f"{package_name}{version_specifier}{inline_comment}"
                 modified = True
-                contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
+                contents = sort_packages(
+                    contents, locale_=ctx.obj.get("locale") if ctx.obj else None
+                )
 
         if modified:
             if preview:
@@ -446,7 +534,10 @@ def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def add_package(
+    ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
+) -> None:
     """Add a package to requirements.txt files.
 
     Adds the specified package to one or more requirements.txt files if it doesn't
@@ -504,7 +595,9 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
                 break
         else:
             contents.append(package_name)
-            contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
+            contents = sort_packages(
+                contents, locale_=ctx.obj.get("locale") if ctx.obj else None
+            )
             modified = True
 
         if modified:
@@ -522,7 +615,10 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def remove_package(
+    ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
+) -> None:
     """Remove a package from requirements.txt files.
 
     Removes the specified package from one or more requirements.txt files if it exists.
@@ -575,7 +671,9 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
         updated_contents = [
             line for line in contents if not check_package_name(package_name, line)
         ]
-        updated_contents = sort_packages(updated_contents, locale_=DEFAULT_LOCALE)
+        updated_contents = sort_packages(
+            updated_contents, locale_=ctx.obj.get("locale") if ctx.obj else None
+        )
 
         if preview:
             click.echo(click.style(requirements_file, fg="cyan", bold=True))
@@ -595,7 +693,8 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
 @cli.command(name="sort")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def sort_requirements(paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> None:
     """Sort requirements.txt files alphabetically.
 
     Sorts package entries in requirements.txt files while intelligently preserving
@@ -645,7 +744,9 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
 
     for requirements_file in gather_requirements_files(resolved_paths):
         contents = requirements_file.read_text(encoding="utf-8").splitlines()
-        new_contents = sort_packages(contents, locale_=DEFAULT_LOCALE)
+        new_contents = sort_packages(
+            contents, locale_=ctx.obj.get("locale") if ctx.obj else None
+        )
         if contents != new_contents:
             if not preview:
                 if check_file_writable(requirements_file, preview):
