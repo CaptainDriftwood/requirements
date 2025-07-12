@@ -308,28 +308,28 @@ def update_package(
     \b
     Examples:
     Basic version update:
-        $ requirements update django 4.2.0
-        $ requirements update requests 2.28.0
+        requirements update django 4.2.0
+        requirements update requests 2.28.0
 
     Version specifiers with operators:
-        $ requirements update django ">=4.2.0"
-        $ requirements update django "~=4.2.0"
-        $ requirements update django "!=4.1.0"
+        requirements update django ">=4.2.0"
+        requirements update django "~=4.2.0"
+        requirements update django "!=4.1.0"
 
     Complex version constraints:
-        $ requirements update django ">=4.0.0,<5.0.0"
-        $ requirements update requests ">=2.25.0,!=2.26.0"
+        requirements update django ">=4.0.0,<5.0.0"
+        requirements update requests ">=2.25.0,!=2.26.0"
 
     Preview changes without saving:
-        $ requirements update django 4.2.0 --preview
+        requirements update django 4.2.0 --preview
 
     Target specific files or directories:
-        $ requirements update django 4.2.0 /path/to/requirements.txt
-        $ requirements update django 4.2.0 /project/backend /project/frontend
-        $ requirements update django 4.2.0 /project  # Updates all requirements.txt in directory
+        requirements update django 4.2.0 /path/to/requirements.txt
+        requirements update django 4.2.0 /project/backend /project/frontend
+        requirements update django 4.2.0 /project  # Updates all requirements.txt in directory
 
     Multiple file paths:
-        $ requirements update django 4.2.0 ./requirements.txt ./dev-requirements.txt
+        requirements update django 4.2.0 ./requirements.txt ./dev-requirements.txt
 
     \b
     Args:
@@ -400,23 +400,23 @@ def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
     \b
     Examples:
     Basic package search:
-        $ requirements find django
-        $ requirements find requests
+        requirements find django
+        requirements find requests
 
     Verbose output (shows the exact line):
-        $ requirements find django --verbose
-        $ requirements find requests --verbose
+        requirements find django --verbose
+        requirements find requests --verbose
 
     Search in specific files:
-        $ requirements find django /path/to/requirements.txt
-        $ requirements find django ./requirements.txt ./dev-requirements.txt
+        requirements find django /path/to/requirements.txt
+        requirements find django ./requirements.txt ./dev-requirements.txt
 
     Search in directories:
-        $ requirements find django /project/backend
-        $ requirements find django /project  # Searches all requirements.txt in directory
+        requirements find django /project/backend
+        requirements find django /project  # Searches all requirements.txt in directory
 
     Search in multiple locations:
-        $ requirements find django /backend /frontend /shared
+        requirements find django /backend /frontend /shared
 
     \b
     Args:
@@ -456,22 +456,22 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     \b
     Examples:
     Basic package addition:
-        $ requirements add requests
-        $ requirements add django
+        requirements add requests
+        requirements add django
 
     Preview changes without saving:
-        $ requirements add requests --preview
+        requirements add requests --preview
 
     Add to specific files:
-        $ requirements add requests /path/to/requirements.txt
-        $ requirements add requests ./requirements.txt ./dev-requirements.txt
+        requirements add requests /path/to/requirements.txt
+        requirements add requests ./requirements.txt ./dev-requirements.txt
 
     Add to directories:
-        $ requirements add requests /project/backend
-        $ requirements add requests /project  # Adds to all requirements.txt in directory
+        requirements add requests /project/backend
+        requirements add requests /project  # Adds to all requirements.txt in directory
 
     Add to multiple locations:
-        $ requirements add requests /backend /frontend /shared
+        requirements add requests /backend /frontend /shared
 
     \b
     Args:
@@ -531,22 +531,22 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     \b
     Examples:
     Basic package removal:
-        $ requirements remove requests
-        $ requirements remove django
+        requirements remove requests
+        requirements remove django
 
     Preview changes without saving:
-        $ requirements remove requests --preview
+        requirements remove requests --preview
 
     Remove from specific files:
-        $ requirements remove requests /path/to/requirements.txt
-        $ requirements remove requests ./requirements.txt ./dev-requirements.txt
+        requirements remove requests /path/to/requirements.txt
+        requirements remove requests ./requirements.txt ./dev-requirements.txt
 
     Remove from directories:
-        $ requirements remove requests /project/backend
-        $ requirements remove requests /project  # Removes from all requirements.txt in directory
+        requirements remove requests /project/backend
+        requirements remove requests /project  # Removes from all requirements.txt in directory
 
     Remove from multiple locations:
-        $ requirements remove requests /backend /frontend /shared
+        requirements remove requests /backend /frontend /shared
 
     \b
     Args:
@@ -605,21 +605,21 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
     \b
     Examples:
     Sort current directory:
-        $ requirements sort
+        requirements sort
 
     Preview changes without saving:
-        $ requirements sort --preview
+        requirements sort --preview
 
     Sort specific files:
-        $ requirements sort /path/to/requirements.txt
-        $ requirements sort ./requirements.txt ./dev-requirements.txt
+        requirements sort /path/to/requirements.txt
+        requirements sort ./requirements.txt ./dev-requirements.txt
 
     Sort directories:
-        $ requirements sort /project/backend
-        $ requirements sort /project  # Sorts all requirements.txt in directory
+        requirements sort /project/backend
+        requirements sort /project  # Sorts all requirements.txt in directory
 
     Sort multiple locations:
-        $ requirements sort /backend /frontend /shared
+        requirements sort /backend /frontend /shared
 
     \b
     Args:
@@ -671,18 +671,18 @@ def cat_requirements(paths: tuple[str]) -> None:
     \b
     Examples:
     Display current directory files:
-        $ requirements cat
+        requirements cat
 
     Display specific files:
-        $ requirements cat /path/to/requirements.txt
-        $ requirements cat ./requirements.txt ./dev-requirements.txt
+        requirements cat /path/to/requirements.txt
+        requirements cat ./requirements.txt ./dev-requirements.txt
 
     Display files in directories:
-        $ requirements cat /project/backend
-        $ requirements cat /project  # Shows all requirements.txt in directory
+        requirements cat /project/backend
+        requirements cat /project  # Shows all requirements.txt in directory
 
     Display files in multiple locations:
-        $ requirements cat /backend /frontend /shared
+        requirements cat /backend /frontend /shared
 
     \b
     Args:
