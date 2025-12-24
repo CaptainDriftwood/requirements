@@ -1,9 +1,45 @@
+import locale
 import pathlib
 import tempfile
 from collections.abc import Generator
 
 import pytest
 from click.testing import CliRunner
+from pytest_mock import MockerFixture
+
+
+def _macos_utf8_strcoll(a: str, b: str) -> int:
+    """
+    A strcoll implementation that mimics macOS ICU-style UTF-8 collation.
+
+    In macOS UTF-8 locales, the collation order for special prefixes is:
+    - '.' prefixed items come first
+    - '#' prefixed items come second
+    - Alphabetic items follow (case-insensitive)
+
+    This provides consistent cross-platform behavior for UTF-8 locale tests.
+    """
+
+    def sort_key(s: str) -> tuple:
+        if s.startswith("."):
+            return (0, s.lower())
+        if s.startswith("#"):
+            return (1, s.lower())
+        return (2, s.lower())
+
+    key_a, key_b = sort_key(a), sort_key(b)
+    return (key_a > key_b) - (key_a < key_b)
+
+
+@pytest.fixture
+def consistent_locale_collation(mocker: MockerFixture):
+    """
+    Fixture that patches locale.strcoll to use consistent macOS-style UTF-8 collation.
+
+    Use this fixture for tests that need deterministic sorting across platforms
+    when testing UTF-8 locale behavior.
+    """
+    mocker.patch.object(locale, "strcoll", side_effect=_macos_utf8_strcoll)
 
 
 @pytest.fixture

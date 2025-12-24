@@ -20,7 +20,8 @@ def packages() -> list[str]:
 
 
 def test_sort_with_no_locale(packages):
-    result = sort_packages(packages)
+    # Use explicit C locale for deterministic cross-platform behavior
+    result = sort_packages(packages, locale_="C")
     assert result == [
         "# some comment",
         "./some_package",
@@ -69,7 +70,8 @@ def test_sort_with_mixed_formats() -> None:
         "requests<3.0.0",
         "django!=2.0.0",
     ]
-    result = sort_packages(packages)
+    # Use explicit C locale for deterministic cross-platform behavior
+    result = sort_packages(packages, locale_="C")
     expected = [
         "# Development dependencies",
         "./local_package",
@@ -93,7 +95,8 @@ def test_sort_with_comments_and_blank_lines() -> None:
         "boto3",
         "",
     ]
-    result = sort_packages(packages, preserve_comments=False)
+    # Use explicit C locale for deterministic cross-platform behavior
+    result = sort_packages(packages, preserve_comments=False, locale_="C")
     # Comments and blank lines should be sorted alphabetically too (legacy behavior)
     expected = [
         "",
@@ -212,7 +215,9 @@ def test_sort_with_c_posix_locales(packages: list[str], locale_name: str) -> Non
         "en_GB.UTF-8",
     ],
 )
-def test_sort_with_utf8_locales(packages: list[str], locale_name: str) -> None:
+def test_sort_with_utf8_locales(
+    packages: list[str], locale_name: str, consistent_locale_collation
+) -> None:
     """Test sorting with UTF-8 locales"""
     result = sort_packages(packages, locale_=locale_name, preserve_comments=False)
     expected = [

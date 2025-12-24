@@ -7,19 +7,16 @@ on:
     branches: [master, main]
 
 jobs:
-  lint:
-    name: Lint
+  format-lint:
+    name: Format & Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          version: "0.14.10"
-          args: "check --output-format=github"
-      - uses: astral-sh/ruff-action@v3
-        with:
-          version: "0.14.10"
-          args: "format --check"
+      - uses: astral-sh/setup-uv@v6
+      - name: Format check
+        run: uv run ruff format --check ./
+      - name: Lint check
+        run: uv run ruff check --output-format=github ./
 
   type-check:
     name: Type Check
@@ -27,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uvx ty@0.0.6 check --output-format=github src/
+      - run: uvx ty check --output-format=github src tests
 
   test:
     name: Test (Python ${{ matrix.python-version }})
