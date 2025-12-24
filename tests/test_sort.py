@@ -1,6 +1,10 @@
-import pytest
+import pathlib
+import tempfile
 
-from src.main import sort_packages
+import pytest
+from click.testing import CliRunner
+
+from src.main import sort_packages, sort_requirements
 
 
 @pytest.fixture
@@ -20,30 +24,6 @@ def test_sort_with_no_locale(packages):
     assert result == [
         "# some comment",
         "./some_package",
-        "apischema",
-        "boto3",
-        "python-dateutil",
-        "requests",
-    ]
-
-
-def test_sort_with_locale(packages: list[str]) -> None:
-    result = sort_packages(packages, locale_="en_US.UTF-8", preserve_comments=False)
-    assert result == [
-        "./some_package",
-        "# some comment",
-        "apischema",
-        "boto3",
-        "python-dateutil",
-        "requests",
-    ]
-
-
-def test_sort_with_uk_locale(packages: list[str]) -> None:
-    result = sort_packages(packages, locale_="en_GB.UTF-8", preserve_comments=False)
-    assert result == [
-        "./some_package",
-        "# some comment",
         "apischema",
         "boto3",
         "python-dateutil",
@@ -244,3 +224,44 @@ def test_sort_with_utf8_locales(packages: list[str], locale_name: str) -> None:
         "requests",
     ]
     assert result == expected
+
+
+class TestSortRequirementsCommand:
+    """Test sort_requirements CLI command functionality"""
+
+    def test_sort_requirements_file(self, cli_runner: CliRunner) -> None:
+        """Test sorting a requirements file"""
+        with tempfile.TemporaryDirectory() as td:
+            requirements_file = pathlib.Path(td) / "requirements.txt"
+            requirements_file.write_text("zpackage\napache\nboto3\n")
+
+            result = cli_runner.invoke(sort_requirements, [td])
+            assert result.exit_code == 0
+            assert "Sorted" in result.output
+
+            contents = requirements_file.read_text()
+            assert contents == "apache\nboto3\nzpackage\n"
+
+    def test_sort_already_sorted_file(self, cli_runner: CliRunner) -> None:
+        """Test sorting an already sorted requirements file"""
+        with tempfile.TemporaryDirectory() as td:
+            requirements_file = pathlib.Path(td) / "requirements.txt"
+            requirements_file.write_text("apache\nboto3\nzpackage\n")
+
+            result = cli_runner.invoke(sort_requirements, [td])
+            assert result.exit_code == 0
+            assert "already sorted" in result.output
+
+    def test_sort_requirements_with_preview(self, cli_runner: CliRunner) -> None:
+        """Test sorting requirements with preview flag"""
+        with tempfile.TemporaryDirectory() as td:
+            requirements_file = pathlib.Path(td) / "requirements.txt"
+            requirements_file.write_text("zpackage\napache\nboto3\n")
+
+            result = cli_runner.invoke(sort_requirements, [td, "--preview"])
+            assert result.exit_code == 0
+            assert "Previewing changes" in result.output
+
+            # Verify file unchanged
+            contents = requirements_file.read_text()
+            assert contents == "zpackage\napache\nboto3\n"

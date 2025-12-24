@@ -142,6 +142,20 @@ def requirements_with_errors() -> Generator[str, None, None]:
 
 
 @pytest.fixture
+def create_requirements_file():
+    """Factory fixture to create requirements.txt files with given content."""
+
+    def _create(base_path: pathlib.Path, subdir: str, content: str) -> pathlib.Path:
+        project_dir = base_path / subdir
+        project_dir.mkdir(exist_ok=True)
+        file_path = project_dir / "requirements.txt"
+        file_path.write_text(content)
+        return file_path
+
+    return _create
+
+
+@pytest.fixture
 def multilevel_nested_directories() -> Generator[str, None, None]:
     """Multiple levels of nested directories with requirements files"""
     with tempfile.TemporaryDirectory() as td:
