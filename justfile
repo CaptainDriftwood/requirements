@@ -34,9 +34,9 @@ clean *ARGS:
 upgrade:
     uv sync --upgrade
 
-# Run mypy against all Python files
+# Run ty type checker against all Python files
 type:
-    @uv run mypy ./
+    @uvx ty check src tests
 
 # Run all quality checks (lint, type, test)
 check: lint type test
