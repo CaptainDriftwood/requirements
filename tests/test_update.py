@@ -1,6 +1,6 @@
-import os
 import pathlib
 
+import pytest
 from click.testing import CliRunner
 
 from src.main import update_package
@@ -135,14 +135,15 @@ def test_multiple_paths_argument(
 
 
 def test_replace_without_paths(
-    cli_runner: CliRunner, single_requirements_file: str
+    cli_runner: CliRunner,
+    single_requirements_file: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test replacing a package without passing in paths"""
 
     # Change directory to parent directory of single_requirements_file
-    # for the duration of this test
-    current_directory = pathlib.Path.cwd()
-    os.chdir(pathlib.Path(single_requirements_file).parent)
+    # for the duration of this test (auto-restored by monkeypatch)
+    monkeypatch.chdir(pathlib.Path(single_requirements_file).parent)
 
     cli_runner.invoke(
         update_package,
@@ -151,7 +152,6 @@ def test_replace_without_paths(
             "==2.0.0",
         ],
     )
-    os.chdir(current_directory)
     contents = (pathlib.Path(single_requirements_file) / "requirements.txt").read_text()
     assert contents == "boto3~=1.0.0\nenhancement-models==2.0.0\npytest\n"
 

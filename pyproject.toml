@@ -43,6 +43,8 @@ packages = ["src"]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-timeout>=2.3.0",
     "ruff>=0.4.0",
     "mypy>=1.9.0",
     "setuptools>=80.9.0",
@@ -146,6 +148,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --cov=src --cov-report=term-missing --cov-report=html"
+timeout = 10  # Default timeout of 10 seconds per test
 
 # Coverage configuration
 [tool.coverage.run]
