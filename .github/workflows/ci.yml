@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uvx ty check --output-format=github src tests
+      - run: uv run --with ty ty check --output-format=github src tests
 
   test:
     name: Test (Python ${{ matrix.python-version }})
