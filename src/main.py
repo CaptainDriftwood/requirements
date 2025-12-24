@@ -685,19 +685,15 @@ def remove_package(
             updated_contents, locale_=ctx.obj.get("locale") if ctx.obj else None
         )
 
-        if preview:
-            click.echo(click.style(requirements_file, fg="cyan", bold=True))
-            click.echo("\n".join(updated_contents).strip() + "\n")
-
-        if (
-            len(contents) != len(updated_contents)
-            and not preview
-            and check_file_writable(requirements_file, preview)
-        ):
-            requirements_file.write_text(
-                "\n".join(updated_contents).strip() + "\n", encoding="utf-8"
-            )
-            click.echo(f"Removed {package_name} from {requirements_file}")
+        if len(contents) != len(updated_contents):
+            if preview:
+                click.echo(click.style(requirements_file, fg="cyan", bold=True))
+                click.echo("\n".join(updated_contents).strip() + "\n")
+            elif check_file_writable(requirements_file, preview):
+                requirements_file.write_text(
+                    "\n".join(updated_contents).strip() + "\n", encoding="utf-8"
+                )
+                click.echo(f"Removed {package_name} from {requirements_file}")
 
 
 @cli.command(name="sort")

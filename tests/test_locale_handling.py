@@ -1,4 +1,5 @@
 import locale
+import pathlib
 from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
@@ -67,7 +68,7 @@ class TestLocaleDetection:
     def test_get_system_locale_adds_utf8_suffix(self):
         """Test that UTF-8 suffix is added to plain locale names"""
         with (
-           patch("src.main._get_locale_from_env") as mock_get_env,
+            patch("src.main._get_locale_from_env") as mock_get_env,
             patch("src.main._is_locale_available") as mock_available,
         ):
             mock_get_env.return_value = "de_DE"
@@ -264,14 +265,16 @@ class TestSortPackagesWithLocale:
 class TestCLILocaleParameter:
     """Test the --locale CLI parameter"""
 
-    def test_cli_locale_parameter_help(self, cli_runner: CliRunner):
+    def test_cli_locale_parameter_help(self, cli_runner: CliRunner) -> None:
         """Test that --locale parameter appears in help"""
         result = cli_runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "--locale" in result.output
         assert "Locale to use for sorting" in result.output
 
-    def test_sort_command_with_locale_parameter(self, cli_runner: CliRunner, tmp_path):
+    def test_sort_command_with_locale_parameter(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test sort command with --locale parameter"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
@@ -287,8 +290,8 @@ class TestCLILocaleParameter:
         assert "zebra==1.0.0" in result.output
 
     def test_update_command_with_locale_parameter(
-        self, cli_runner: CliRunner, tmp_path
-    ):
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test update command with --locale parameter"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
@@ -300,7 +303,9 @@ class TestCLILocaleParameter:
         assert result.exit_code == 0
         assert "apple==2.1.0" in result.output
 
-    def test_add_command_with_locale_parameter(self, cli_runner: CliRunner, tmp_path):
+    def test_add_command_with_locale_parameter(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test add command with --locale parameter"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\nbanana==3.0.0\n")
@@ -312,8 +317,8 @@ class TestCLILocaleParameter:
         assert "apple" in result.output
 
     def test_remove_command_with_locale_parameter(
-        self, cli_runner: CliRunner, tmp_path
-    ):
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test remove command with --locale parameter"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
@@ -325,7 +330,9 @@ class TestCLILocaleParameter:
         assert "apple" not in result.output
         assert "zebra==1.0.0" in result.output
 
-    def test_invalid_locale_graceful_fallback(self, cli_runner: CliRunner, tmp_path):
+    def test_invalid_locale_graceful_fallback(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test that invalid locale falls back gracefully"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\n")
@@ -368,16 +375,18 @@ class TestLocaleErrorScenarios:
             result = get_system_locale()
             assert result in ("C", "POSIX")
 
-    def test_completely_broken_locale_system(self):
+    def test_completely_broken_locale_system(self) -> None:
         """Test behavior when locale system is completely broken"""
         with patch("src.main._is_locale_available") as mock_available:
             # Simulate system where no locales are available
             mock_available.return_value = False
 
-            result = get_system_locale()
-            assert result is None
+            locale_result = get_system_locale()
+            assert locale_result is None
 
             # Sorting should still work with ASCII fallback
             packages = ["zebra", "apple"]
-            result = sort_packages(packages, locale_=None, preserve_comments=False)
-            assert result == ["apple", "zebra"]
+            sorted_result = sort_packages(
+                packages, locale_=None, preserve_comments=False
+            )
+            assert sorted_result == ["apple", "zebra"]

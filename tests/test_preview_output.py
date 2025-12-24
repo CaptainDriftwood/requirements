@@ -66,7 +66,9 @@ def test_sort_preview_output_format(cli_runner, tmp_path, create_requirements_fi
     assert "requests==2.25.1" in result.stdout
 
 
-def test_all_preview_commands_consistent_format(cli_runner, tmp_path, create_requirements_file):
+def test_all_preview_commands_consistent_format(
+    cli_runner, tmp_path, create_requirements_file
+):
     """Test that all preview commands use consistent output format."""
     create_requirements_file(tmp_path, "project", "requests==2.25.1\ndjango==3.0\n")
 

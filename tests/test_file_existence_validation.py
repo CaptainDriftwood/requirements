@@ -111,28 +111,28 @@ class TestGatherRequirementsFilesValidation:
 class TestCommandFileValidation:
     """Test that all commands handle missing files gracefully"""
 
-    def test_find_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_find_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test find command with non-existent file"""
         result = cli_runner.invoke(find_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_add_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_add_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test add command with non-existent file"""
         result = cli_runner.invoke(add_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_remove_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_remove_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test remove command with non-existent file"""
         result = cli_runner.invoke(remove_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_update_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_update_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test update command with non-existent file"""
         result = cli_runner.invoke(
             update_package, ["django", "4.2.0", "/nonexistent/path"]
@@ -141,21 +141,23 @@ class TestCommandFileValidation:
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_sort_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_sort_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test sort command with non-existent file"""
         result = cli_runner.invoke(sort_requirements, ["/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_cat_command_nonexistent_file(self, cli_runner: CliRunner):
+    def test_cat_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
         """Test cat command with non-existent file"""
         result = cli_runner.invoke(cat_requirements, ["/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_wrong_filename_error_messages(self, cli_runner: CliRunner, tmp_path):
+    def test_wrong_filename_error_messages(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test clear error messages for wrong filenames"""
         wrong_file = tmp_path / "dependencies.txt"
         wrong_file.write_text("requests==2.26.0\n")
@@ -167,7 +169,9 @@ class TestCommandFileValidation:
             "is not a requirements.txt file (found: dependencies.txt)" in result.output
         )
 
-    def test_empty_directory_warning(self, cli_runner: CliRunner, tmp_path):
+    def test_empty_directory_warning(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
         """Test warning for empty directories"""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
