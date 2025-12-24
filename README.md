@@ -183,11 +183,13 @@ requirements update requests "2.28.0" --preview
 
 ### Command Options
 
-Available options by command:
+**Global options (apply to all commands):**
+- `--version`: Show the version and exit
+- `--locale LOCALE`: Locale for sorting (e.g., `en_US.UTF-8`, `C`). Auto-detected if not specified
+- `--help`: Show help message
 
 **All commands:**
 - `paths` (positional): Specify custom paths to search (default: current directory)
-- `--help`: Show command-specific help
 
 **add, remove, update, sort:**
 - `--preview`: Show what changes would be made without applying them
@@ -260,17 +262,18 @@ just nox
 
 ### Available recipes
 ```bash
-just          # Show available recipes
-just test     # Run pytest
-just lint     # Run ruff linter
-just format   # Format code with ruff
-just type     # Run mypy type checking
-just check    # Run all quality checks
-just nox      # Run tests across Python 3.11, 3.12, 3.13
-just build    # Build the package
-just install  # Install in development mode
-just clean    # Clean build artifacts
-just upgrade  # Upgrade dependencies
+just            # Show available recipes
+just test       # Run pytest
+just test-quick # Run pytest with minimal output
+just lint       # Run ruff linter
+just format     # Format code with ruff
+just type       # Run mypy type checking
+just check      # Run all quality checks
+just nox        # Run tests across Python 3.11, 3.12, 3.13
+just build      # Build the package
+just install    # Install in development mode
+just clean      # Clean build artifacts
+just upgrade    # Upgrade dependencies
 ```
 
 ## License
