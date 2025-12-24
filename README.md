@@ -19,6 +19,8 @@ It provides functionalities to add, update, remove, find, sort, and view package
 - **Remove**: Remove a package from `requirements.txt` files
 - **Sort**: Sort packages alphabetically in `requirements.txt` files
 - **Cat**: View the contents of `requirements.txt` files
+- **Smart exclusions**: Automatically skips `.venv`, `venv`, `virtualenv`, and `.aws-sam` directories
+- **URL support**: Handles VCS URLs (`git+https://...`) and PEP 440 URL requirements
 
 ## Installation
 
@@ -227,6 +229,39 @@ requirements remove unused-package
 requirements sort
 ```
 
+### Version Specifier Examples
+
+The CLI supports all PEP 440 version specifiers:
+
+```bash
+# Exact version (== is added automatically if no operator)
+requirements update django 4.2.0        # becomes django==4.2.0
+
+# Minimum version
+requirements update django ">=4.2.0"
+
+# Compatible release (allows patch updates)
+requirements update django "~=4.2.0"    # allows 4.2.x but not 4.3.0
+
+# Maximum version
+requirements update django "<5.0.0"
+
+# Exclusion
+requirements update django "!=4.1.0"
+
+# Range constraints
+requirements update django ">=4.0.0,<5.0.0"
+
+# Multiple constraints
+requirements update requests ">=2.25.0,!=2.26.0,<3.0.0"
+
+# Pre-release versions
+requirements update django ">=4.2.0a1"
+
+# Local version identifiers
+requirements update mypackage "==1.0.0+local"
+```
+
 ## Development
 
 ### Setup
@@ -267,7 +302,7 @@ just test       # Run pytest
 just test-quick # Run pytest with minimal output
 just lint       # Run ruff linter
 just format     # Format code with ruff
-just type       # Run mypy type checking
+just type       # Run ty type checking
 just check      # Run all quality checks
 just nox        # Run tests across Python 3.11, 3.12, 3.13
 just build      # Build the package

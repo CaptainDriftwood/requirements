@@ -97,10 +97,11 @@ class TestResolvePathsFunction:
         ("example-package", "example_package>=1.2.3", True),
         ("example_package", "example-package==1.2.3", True),
         # Extras and version specifiers
-        ("example", "example[extra]", False),
-        ("example", "example[extra]==1.2.3", False),
-        ("example_package", "example-package[extra]>=1.2.3", False),
-        ("example-package", "example_package[extra]==1.2.3", False),
+        # Extras should match the base package (example[extra] IS the package example)
+        ("example", "example[extra]", True),
+        ("example", "example[extra]==1.2.3", True),
+        ("example_package", "example-package[extra]>=1.2.3", True),
+        ("example-package", "example_package[extra]==1.2.3", True),
         # Case sensitivity tests (should be case-insensitive like pip)
         ("Django", "django", True),
         ("django", "Django", True),

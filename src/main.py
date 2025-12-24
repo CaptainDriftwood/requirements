@@ -113,7 +113,11 @@ def set_locale(new_locale: str | None = None) -> Generator[Callable, None, None]
         yield locale.strcoll
     except (locale.Error, OSError) as e:
         # Locale setting failed, fall back to basic comparison
-        logger.debug(f"Failed to set locale '{new_locale}': {e}. Using ASCII sorting.")
+        click.echo(
+            f"Warning: Locale '{new_locale}' not available, using ASCII sorting.",
+            err=True,
+        )
+        logger.debug(f"Locale error details: {e}")
         yield lambda a, b: (a > b) - (a < b)
     finally:
         try:
@@ -148,8 +152,21 @@ def sort_packages(
 def _sort_with_comment_preservation(
     lines: list[str], locale_: str | None = None
 ) -> list[str]:
-    """Sort lines while preserving comment associations and file structure"""
+    """Sort lines while preserving comment associations and file structure.
 
+    This function implements smart sorting that:
+    1. Splits the file into sections separated by blank lines
+    2. Within each section, keeps comments at the top
+    3. Sorts only the package lines alphabetically
+    4. Preserves the original order of comments
+
+    Args:
+        lines: List of lines from a requirements.txt file
+        locale_: Optional locale for sorting (e.g., 'en_US.UTF-8')
+
+    Returns:
+        Sorted list of lines with preserved structure
+    """
     if not lines:
         return lines
 
@@ -260,7 +277,11 @@ def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
                 )
         # Check if it's a directory
         elif path.is_dir():
-            found_files = list(pathlib.Path(path).glob("**/requirements.txt"))
+            found_files = []
+            for f in pathlib.Path(path).glob("**/requirements.txt"):
+                # Skip symlinks to prevent infinite loops and unexpected behavior
+                if not f.is_symlink():
+                    found_files.append(f)
             if not found_files:
                 click.echo(
                     f"Warning: No requirements.txt files found in directory '{path}'",
@@ -335,18 +356,83 @@ def validate_version_specifier(version_specifier: str) -> str:
         ) from e
 
 
-def check_package_name(package_name: str, line: str) -> bool:
-    """Determine if a line in a requirements.txt file contains the given package name"""
+def _is_url_requirement(line: str) -> bool:
+    """Check if a line is a URL-based requirement (VCS, file://, http://, etc.)."""
+    line_stripped = line.strip().lower()
+    # VCS URLs: git+, hg+, svn+, bzr+
+    # Direct URLs: http://, https://, file://
+    url_prefixes = (
+        "git+",
+        "git://",
+        "hg+",
+        "svn+",
+        "bzr+",
+        "http://",
+        "https://",
+        "file://",
+    )
+    return line_stripped.startswith(url_prefixes)
 
+
+def _extract_package_from_url(line: str) -> str | None:
+    """Extract package name from a URL-based requirement.
+
+    Handles formats like:
+    - git+https://github.com/user/repo.git#egg=package_name
+    - git+https://github.com/user/repo.git@v1.0#egg=package_name
+    - package @ https://example.com/package.whl
+    """
+    line_stripped = line.strip()
+
+    # Check for #egg= fragment (common in VCS URLs)
+    if "#egg=" in line_stripped.lower():
+        egg_part = line_stripped.lower().split("#egg=")[-1]
+        # Remove any additional fragments or query params
+        return egg_part.split("&")[0].split("#")[0].strip()
+
+    # Check for PEP 440 URL syntax: package @ URL
+    if " @ " in line_stripped:
+        return line_stripped.split(" @ ")[0].strip().lower()
+
+    # Try to extract from repo name (last resort for git URLs)
+    if "github.com" in line_stripped or "gitlab.com" in line_stripped:
+        # Extract repo name from URL like git+https://github.com/user/repo.git
+        match = re.search(r"/([^/]+?)(?:\.git)?(?:@|#|$)", line_stripped)
+        if match:
+            return match.group(1).lower()
+
+    return None
+
+
+def check_package_name(package_name: str, line: str) -> bool:
+    """Determine if a line in a requirements.txt file contains the given package name.
+
+    Handles various requirement formats:
+    - Simple packages: requests, django
+    - Versioned packages: requests==2.28.0, django>=4.0
+    - Packages with extras: requests[security], django[argon2]
+    - Local paths: ./local_package, ../shared
+    - URL requirements: git+https://..., package @ https://...
+    """
     # Convert to lowercase for case-insensitive comparison (pip is case-insensitive)
     package_name_lower = package_name.lower()
-    line_lower = line.lower()
+    line_lower = line.lower().strip()
 
     if package_name_lower == line_lower:
         return True
 
     # If line is commented out, ignore it.
-    if line.startswith("#"):
+    if line.strip().startswith("#"):
+        return False
+
+    # Handle URL-based requirements
+    if _is_url_requirement(line):
+        url_package = _extract_package_from_url(line)
+        if url_package:
+            # Normalize dashes/underscores for comparison
+            url_package_normalized = url_package.replace("-", "_")
+            package_normalized = package_name_lower.replace("-", "_")
+            return url_package_normalized == package_normalized
         return False
 
     # We make the package name and the line match in terms of dashes and underscores.
@@ -360,15 +446,29 @@ def check_package_name(package_name: str, line: str) -> bool:
     if line_lower.startswith(("./", "../")):
         return package_name_lower in line_lower.split("/")[-1]
 
-    # Finally, we remove any sort of version specifier from the line and then check
+    # Remove extras notation before version specifier check (e.g., package[extra])
+    line_lower = re.split(r"\[", line_lower)[0]
+
+    # Remove any sort of version specifier from the line and then check
     # if the package name matches.
-    line_lower = re.split(r"~=|==|>=|<=|>|<|!=", line_lower)[0].strip()
+    line_lower = re.split(r"~=|==|>=|<=|!=|>|<", line_lower)[0].strip()
 
     return package_name_lower == line_lower
 
 
 @click.group(
-    help="Manage requirements.txt files such as adding, removing, and updating individual packages in bulk"
+    help="""Manage requirements.txt files such as adding, removing, and updating individual packages in bulk.
+
+\b
+Exit Codes:
+    0: Success (operation completed, or no changes needed)
+    1: Error (invalid arguments, file not found, or operation failed)
+
+\b
+Excluded Directories:
+    The following directories are automatically excluded from searches:
+    .venv, venv, virtualenv, .aws-sam
+"""
 )
 @click.version_option(package_name="requirements")
 @click.option(
@@ -747,6 +847,9 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
         click.echo("Previewing changes")
 
     resolved_paths = resolve_paths(paths)
+    files_sorted = 0
+    files_already_sorted = 0
+    files_skipped = 0
 
     for requirements_file in gather_requirements_files(resolved_paths):
         contents = requirements_file.read_text(encoding="utf-8").splitlines()
@@ -760,11 +863,28 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
                         "\n".join(new_contents).strip() + "\n", encoding="utf-8"
                     )
                     click.echo(f"Sorted {requirements_file}")
+                    files_sorted += 1
+                else:
+                    files_skipped += 1
             else:
                 click.echo(click.style(requirements_file, fg="cyan", bold=True))
                 click.echo("\n".join(new_contents).strip() + "\n")
+                files_sorted += 1
         else:
             click.echo(f"{requirements_file} is already sorted")
+            files_already_sorted += 1
+
+    # Show summary for batch operations
+    total_files = files_sorted + files_already_sorted + files_skipped
+    if total_files > 1:
+        summary_parts = []
+        if files_sorted:
+            summary_parts.append(f"{files_sorted} sorted")
+        if files_already_sorted:
+            summary_parts.append(f"{files_already_sorted} already sorted")
+        if files_skipped:
+            summary_parts.append(f"{files_skipped} skipped")
+        click.echo(f"\nSummary: {', '.join(summary_parts)} ({total_files} files total)")
 
 
 @cli.command(name="cat")
