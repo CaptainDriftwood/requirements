@@ -17,6 +17,14 @@ test:
 test-quick:
     @uv run pytest -q
 
+# Run only unit tests (fast, no I/O)
+test-unit:
+    @uv run pytest tests/unit -q
+
+# Run only integration tests (CLI, file system)
+test-integration:
+    @uv run pytest tests/integration -q
+
 # Run ruff linter against all files
 lint:
     @uv run ruff check ./

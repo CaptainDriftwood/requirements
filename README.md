@@ -297,18 +297,20 @@ just nox
 
 ### Available recipes
 ```bash
-just            # Show available recipes
-just test       # Run pytest
-just test-quick # Run pytest with minimal output
-just lint       # Run ruff linter
-just format     # Format code with ruff
-just type       # Run ty type checking
-just check      # Run all quality checks
-just nox        # Run tests across Python 3.11, 3.12, 3.13
-just build      # Build the package
-just install    # Install in development mode
-just clean      # Clean build artifacts
-just upgrade    # Upgrade dependencies
+just                  # Show available recipes
+just test             # Run all tests
+just test-quick       # Run tests with minimal output
+just test-unit        # Run only unit tests (fast, ~0.04s)
+just test-integration # Run only integration tests (~0.2s)
+just lint             # Run ruff linter
+just format           # Format code with ruff
+just type             # Run ty type checking
+just check            # Run all quality checks
+just nox              # Run tests across Python 3.11, 3.12, 3.13
+just build            # Build the package
+just install          # Install in development mode
+just clean            # Clean build artifacts
+just upgrade          # Upgrade dependencies
 ```
 
 ## License
