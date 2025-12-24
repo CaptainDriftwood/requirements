@@ -2,7 +2,11 @@
 
 <img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
 
-![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
+[![CI](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.  
 It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
@@ -18,7 +22,7 @@ It provides functionalities to add, update, remove, find, sort, and view package
 
 ## Installation
 
-This project requires Python 3.9 or higher.
+This project requires Python 3.11 or higher.
 
 ### Install from GitHub (Recommended)
 
@@ -233,30 +237,40 @@ uv sync
 ### Testing
 ```bash
 # Run tests
-uv run pytest
+just test
 
 # Run tests with coverage
-make test
+uv run pytest --cov=src
 
 # Run linting
-make lint
+just lint
 
 # Format code
-make format
+just format
 
 # Type checking
-make type
+just type
+
+# Run all checks (lint, type, test)
+just check
+
+# Run tests across Python versions with nox
+just nox
 ```
 
-### Available Make targets
+### Available recipes
 ```bash
-make help     # Show available targets
-make test     # Run pytest with coverage
-make lint     # Run ruff linter
-make format   # Format code with ruff
-make type     # Run mypy type checking
-make clean    # Clean build artifacts
-make upgrade  # Upgrade dependencies
+just          # Show available recipes
+just test     # Run pytest
+just lint     # Run ruff linter
+just format   # Format code with ruff
+just type     # Run mypy type checking
+just check    # Run all quality checks
+just nox      # Run tests across Python 3.11, 3.12, 3.13
+just build    # Build the package
+just install  # Install in development mode
+just clean    # Clean build artifacts
+just upgrade  # Upgrade dependencies
 ```
 
 ## License
