@@ -48,3 +48,7 @@ build:
 # Install package in development mode
 install:
     uv pip install -e .
+
+# Run tests across all supported Python versions
+nox *ARGS:
+    uvx nox {{ ARGS }}

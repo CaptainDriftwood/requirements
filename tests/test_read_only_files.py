@@ -8,8 +8,8 @@ from src.main import cli
 
 @pytest.fixture
 def runner():
-    """Click test runner with stderr separation."""
-    return CliRunner(mix_stderr=False)
+    """Click test runner."""
+    return CliRunner()
 
 
 def create_requirements_file(

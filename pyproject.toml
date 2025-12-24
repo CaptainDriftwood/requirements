@@ -9,7 +9,7 @@ dependencies = [
     "click>=8.1.7",
     "packaging>=21.0",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["requirements", "monorepo", "dependency", "cli", "python"]
@@ -19,10 +19,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Software Distribution",
     "Topic :: Utilities",
@@ -48,12 +47,14 @@ dev-dependencies = [
     "mypy>=1.9.0",
     "setuptools>=80.9.0",
     "wheel>=0.45.1",
+    "nox>=2025.11.12",
+    "nox-uv>=0.6.3",
 ]
 
 # Ruff configuration
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py311"
 include = ["*.py", "*.pyi", "**/pyproject.toml", "src/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.lint]
@@ -119,7 +120,7 @@ line-ending = "auto"
 
 # MyPy configuration
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
