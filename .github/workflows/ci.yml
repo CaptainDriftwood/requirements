@@ -58,9 +58,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Build package
         run: uv build
-      - name: Install from wheel
-        run: uv pip install dist/*.whl
+      - name: Create venv and install from wheel
+        run: |
+          uv venv
+          uv pip install dist/*.whl
       - name: Verify CLI works
         run: |
-          requirements --help
-          requirements --version
+          .venv/bin/requirements --help
+          .venv/bin/requirements --version
