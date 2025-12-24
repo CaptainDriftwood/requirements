@@ -34,9 +34,17 @@ format:
     @uv run ruff check --fix ./
     @uv run ruff format ./
 
-# Clean untracked files (use: just clean --dry-run)
-clean *ARGS:
-    @python clean.py {{ ARGS }}
+# Clean untracked files, preserving .claude, .venv, .idea, .run
+clean:
+    git clean -fdx -e .claude -e .venv -e .idea -e .run
+
+# Show what clean would remove (dry-run)
+clean-dry:
+    git clean -ndx -e .claude -e .venv -e .idea -e .run
+
+# Clean interactively, prompting for each file
+clean-i:
+    git clean -idx -e .claude -e .venv -e .idea -e .run
 
 # Upgrade all Python packages to latest versions using uv
 upgrade:
