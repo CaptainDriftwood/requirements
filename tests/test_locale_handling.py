@@ -67,10 +67,10 @@ class TestLocaleDetection:
     def test_get_system_locale_adds_utf8_suffix(self):
         """Test that UTF-8 suffix is added to plain locale names"""
         with (
-            patch("locale.getdefaultlocale") as mock_getdefault,
+           patch("src.main._get_locale_from_env") as mock_get_env,
             patch("src.main._is_locale_available") as mock_available,
         ):
-            mock_getdefault.return_value = ("de_DE", "UTF-8")
+            mock_get_env.return_value = "de_DE"
             mock_available.side_effect = lambda x: x == "de_DE.UTF-8"
 
             result = get_system_locale()

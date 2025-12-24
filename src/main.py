@@ -14,6 +14,17 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
+def _get_locale_from_env() -> str | None:
+    """Get locale from environment variables (replaces deprecated getdefaultlocale)."""
+    # Check environment variables in order of precedence
+    for var in ("LC_ALL", "LC_COLLATE", "LANG"):
+        value = os.environ.get(var)
+        if value and value not in ("", "C", "POSIX"):
+            # Strip encoding suffix if present for the candidate list
+            return value.split(".")[0] if "." in value else value
+    return None
+
+
 def get_system_locale() -> str | None:
     """
     Detect the best available locale for sorting, trying multiple fallbacks.
@@ -23,8 +34,8 @@ def get_system_locale() -> str | None:
     """
     # List of locale candidates to try, in order of preference
     locale_candidates = [
-        # Try system default first
-        locale.getdefaultlocale()[0],
+        # Try system default first (from environment variables)
+        _get_locale_from_env(),
         # Common UTF-8 locales
         "C.UTF-8",
         "en_US.UTF-8",
