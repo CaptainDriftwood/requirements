@@ -72,19 +72,11 @@ class TestLocaleDetection:
         result = get_system_locale()
         assert result == "de_DE.UTF-8"
 
-    def test_is_locale_available_success(self, mocker: MockerFixture):
+    def test_is_locale_available_success(self):
         """Test locale availability check when locale exists"""
-        mock_setlocale = mocker.patch("locale.setlocale")
-        mock_getlocale = mocker.patch("locale.getlocale")
-
-        mock_getlocale.return_value = ("en_US", "UTF-8")
-        mock_setlocale.return_value = None
-
-        result = _is_locale_available("en_US.UTF-8")
-        assert result is True
-
-        # Verify locale was tested and restored
-        assert mock_setlocale.call_count == 2
+        # C and POSIX locales are always available on any POSIX-compliant system
+        assert _is_locale_available("C") is True
+        assert _is_locale_available("POSIX") is True
 
     def test_is_locale_available_failure(self, mocker: MockerFixture):
         """Test locale availability check when locale doesn't exist"""
@@ -123,20 +115,18 @@ class TestLocaleDetection:
 class TestSetLocaleContextManager:
     """Test the set_locale context manager"""
 
-    def test_set_locale_success(self, mocker: MockerFixture):
-        """Test successful locale setting"""
-        mock_setlocale = mocker.patch("locale.setlocale")
-        mock_getlocale = mocker.patch("locale.getlocale")
-        mock_strcoll = mocker.patch("locale.strcoll")
-
-        mock_getlocale.return_value = ("en_US", "UTF-8")
-        mock_strcoll.return_value = 0
-
-        with set_locale("en_GB.UTF-8") as cmp_func:
-            assert cmp_func == mock_strcoll
-
-        # Verify locale was set and restored
-        assert mock_setlocale.call_count == 2
+    def test_set_locale_success(self):
+        """Test successful locale setting with real C locale"""
+        # Use C locale which is always available
+        with set_locale("C") as cmp_func:
+            # Verify we got a working comparison function
+            assert callable(cmp_func)
+            # Test that it actually compares strings correctly
+            assert cmp_func("apple", "banana") < 0
+            assert cmp_func("banana", "apple") > 0
+            assert cmp_func("apple", "apple") == 0
+            # C locale uses ASCII ordering, so uppercase comes before lowercase
+            assert cmp_func("A", "a") < 0
 
     def test_set_locale_none(self):
         """Test set_locale with None locale"""
@@ -180,42 +170,27 @@ class TestSetLocaleContextManager:
 class TestSortPackagesWithLocale:
     """Test sorting behavior with different locales"""
 
-    def test_sort_packages_with_explicit_locale(self, mocker: MockerFixture):
-        """Test sorting with explicitly specified locale"""
+    def test_sort_packages_with_explicit_locale(self):
+        """Test sorting with explicitly specified C locale"""
         packages = ["zebra", "apple", "banana"]
 
-        mock_set_locale = mocker.patch("src.main.set_locale")
-        mock_set_locale.return_value.__enter__ = mocker.MagicMock(
-            return_value=lambda a, b: (a > b) - (a < b)
-        )
-        mock_set_locale.return_value.__exit__ = mocker.MagicMock(return_value=None)
+        # Use real C locale - always available
+        result = sort_packages(packages, locale_="C", preserve_comments=False)
 
-        result = sort_packages(packages, locale_="en_US.UTF-8", preserve_comments=False)
-
-        mock_set_locale.assert_called_once_with("en_US.UTF-8")
         assert result == ["apple", "banana", "zebra"]
 
-    def test_sort_packages_with_auto_detection(self, mocker: MockerFixture):
-        """Test sorting with automatic locale detection"""
+    def test_sort_packages_with_auto_detection(self):
+        """Test sorting works when locale is auto-detected (None)"""
         packages = ["zebra", "apple", "banana"]
 
-        mock_get_default = mocker.patch("src.main.get_default_locale")
-        mock_set_locale = mocker.patch("src.main.set_locale")
-
-        mock_get_default.return_value = "en_US.UTF-8"
-        mock_set_locale.return_value.__enter__ = mocker.MagicMock(
-            return_value=lambda a, b: (a > b) - (a < b)
-        )
-        mock_set_locale.return_value.__exit__ = mocker.MagicMock(return_value=None)
-
+        # When locale_=None, the system should auto-detect and still sort correctly
         result = sort_packages(packages, locale_=None, preserve_comments=False)
 
-        mock_get_default.assert_called_once()
-        mock_set_locale.assert_called_once_with("en_US.UTF-8")
+        # Regardless of what locale is detected, alphabetic packages should be sorted
         assert result == ["apple", "banana", "zebra"]
 
-    def test_sort_packages_with_comments_and_locale(self, mocker: MockerFixture):
-        """Test sorting with comment preservation and locale"""
+    def test_sort_packages_with_comments_and_locale(self):
+        """Test sorting with comment preservation and explicit C locale"""
         lines = [
             "# Web frameworks",
             "flask==2.0.0",
@@ -226,16 +201,8 @@ class TestSortPackagesWithLocale:
             "numpy==1.21.0",
         ]
 
-        mock_get_default = mocker.patch("src.main.get_default_locale")
-        mock_set_locale = mocker.patch("src.main.set_locale")
-
-        mock_get_default.return_value = "C.UTF-8"
-        mock_set_locale.return_value.__enter__ = mocker.MagicMock(
-            return_value=lambda a, b: (a > b) - (a < b)
-        )
-        mock_set_locale.return_value.__exit__ = mocker.MagicMock(return_value=None)
-
-        result = sort_packages(lines, locale_=None)
+        # Use real C locale
+        result = sort_packages(lines, locale_="C")
 
         # Should preserve comments and sort packages within sections
         expected = [
@@ -339,19 +306,16 @@ class TestCLILocaleParameter:
 class TestLocaleErrorScenarios:
     """Test various locale-related error scenarios"""
 
-    def test_locale_error_during_sorting(self, mocker: MockerFixture):
-        """Test handling of locale errors during sorting"""
+    def test_locale_error_during_sorting(self):
+        """Test handling of locale errors during sorting with real invalid locale"""
         packages = ["zebra", "apple"]
 
-        mock_set_locale = mocker.patch("src.main.set_locale")
-        # Mock locale setting failure
-        mock_set_locale.return_value.__enter__ = mocker.MagicMock(
-            return_value=lambda a, b: (a > b) - (a < b)
+        # Use a real invalid locale - should fall back gracefully
+        result = sort_packages(
+            packages, locale_="invalid_locale_xyz", preserve_comments=False
         )
-        mock_set_locale.return_value.__exit__ = mocker.MagicMock(return_value=None)
 
-        # Should not raise exception, should fall back gracefully
-        result = sort_packages(packages, locale_="invalid", preserve_comments=False)
+        # Should still sort correctly using ASCII fallback
         assert result == ["apple", "zebra"]
 
     def test_system_without_utf8_locales(self, mocker: MockerFixture):
