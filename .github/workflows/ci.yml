@@ -49,3 +49,18 @@ jobs:
         with:
           files: coverage.xml
           fail_ci_if_error: false
+
+  build-install:
+    name: Build & Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build package
+        run: uv build
+      - name: Install from wheel
+        run: uv pip install dist/*.whl
+      - name: Verify CLI works
+        run: |
+          requirements --help
+          requirements --version

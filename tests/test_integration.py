@@ -1,4 +1,5 @@
 import pathlib
+import subprocess
 import tempfile
 
 from click.testing import CliRunner
@@ -238,3 +239,29 @@ class TestVirtualEnvironmentExclusion:
             result = cli_runner.invoke(find_package, ["should_be_excluded", td])
             assert result.exit_code == 0
             assert result.output.strip() == ""
+
+
+class TestCLIEntryPoint:
+    """Test that the CLI entry point is installed and functional"""
+
+    def test_cli_entry_point_help(self) -> None:
+        """Verify the CLI entry point responds to --help"""
+        result = subprocess.run(
+            ["requirements", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert "Manage requirements.txt files" in result.stdout
+
+    def test_cli_entry_point_version(self) -> None:
+        """Verify the CLI entry point responds to --version"""
+        result = subprocess.run(
+            ["requirements", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert "requirements" in result.stdout.lower()
