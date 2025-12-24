@@ -3,10 +3,9 @@ import logging
 import os
 import pathlib
 import re
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import cmp_to_key
-from typing import Callable, Optional
 
 import click
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
-def get_system_locale() -> Optional[str]:
+def get_system_locale() -> str | None:
     """
     Detect the best available locale for sorting, trying multiple fallbacks.
 
@@ -77,7 +76,7 @@ def _is_locale_available(locale_name: str) -> bool:
 _SYSTEM_LOCALE = None
 
 
-def get_default_locale() -> Optional[str]:
+def get_default_locale() -> str | None:
     """Get the cached system locale, detecting it if not already cached."""
     global _SYSTEM_LOCALE
     if _SYSTEM_LOCALE is None:
@@ -86,7 +85,7 @@ def get_default_locale() -> Optional[str]:
 
 
 @contextmanager
-def set_locale(new_locale: Optional[str] = None) -> Generator[Callable, None, None]:
+def set_locale(new_locale: str | None = None) -> Generator[Callable, None, None]:
     """
     Context manager to set the locale with better error handling.
 
@@ -114,7 +113,7 @@ def set_locale(new_locale: Optional[str] = None) -> Generator[Callable, None, No
 
 
 def sort_packages(
-    packages: list[str], locale_: Optional[str] = None, preserve_comments: bool = True
+    packages: list[str], locale_: str | None = None, preserve_comments: bool = True
 ) -> list[str]:
     """
     Sort a list of packages using specified locale with optional comment preservation.
@@ -136,7 +135,7 @@ def sort_packages(
 
 
 def _sort_with_comment_preservation(
-    lines: list[str], locale_: Optional[str] = None
+    lines: list[str], locale_: str | None = None
 ) -> list[str]:
     """Sort lines while preserving comment associations and file structure"""
 
@@ -184,7 +183,7 @@ def _parse_into_sections(lines: list[str]) -> list[list[str]]:
     return sections
 
 
-def _sort_section(section: list[str], locale_: Optional[str] = None) -> list[str]:
+def _sort_section(section: list[str], locale_: str | None = None) -> list[str]:
     """Sort packages within a section while keeping comments at the top"""
 
     if not section:
@@ -367,7 +366,7 @@ def check_package_name(package_name: str, line: str) -> bool:
     metavar="LOCALE",
 )
 @click.pass_context
-def cli(ctx: click.Context, locale: Optional[str]) -> None:
+def cli(ctx: click.Context, locale: str | None) -> None:
     # Store locale in context for use by subcommands
     ctx.ensure_object(dict)
     ctx.obj["locale"] = locale
