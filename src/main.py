@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 import re
+import subprocess
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import cmp_to_key
@@ -931,6 +932,156 @@ def cat_requirements(paths: tuple[str]) -> None:
         click.echo(click.style(requirements_file, fg="cyan", bold=True))
         click.echo(requirements_file.read_text(encoding="utf-8").strip())
         click.echo()
+
+
+def _parse_pip_index_versions(output: str) -> tuple[str | None, list[str]]:
+    """Parse the output of 'pip index versions' command.
+
+    Returns:
+        Tuple of (latest_version, list_of_all_versions)
+    """
+    versions: list[str] = []
+    latest: str | None = None
+
+    for line in output.strip().splitlines():
+        # Format: "package (latest_version)"
+        if "(" in line and ")" in line:
+            match = re.search(r"\(([^)]+)\)", line)
+            if match:
+                latest = match.group(1)
+        # Format: "Available versions: 1.0.0, 0.9.0, ..."
+        elif line.startswith("Available versions:"):
+            version_str = line.replace("Available versions:", "").strip()
+            versions = [v.strip() for v in version_str.split(",") if v.strip()]
+
+    return latest, versions
+
+
+@cli.command(name="versions")
+@click.argument("package_name")
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    help="Show all available versions (default: 10 most recent)",
+)
+@click.option(
+    "--limit",
+    default=10,
+    type=int,
+    help="Number of versions to show (default: 10)",
+)
+@click.option(
+    "--index-url",
+    help="Custom PyPI index URL (e.g., private Nexus repository)",
+    metavar="URL",
+)
+def show_versions(
+    package_name: str,
+    show_all: bool,
+    limit: int,
+    index_url: str | None,
+) -> None:
+    """Show available versions of a package from PyPI.
+
+    Queries the package index (PyPI or a custom index) for available versions
+    of the specified package. By default shows the 10 most recent versions.
+
+    \b
+    Examples:
+    Show recent versions:
+        requirements versions requests
+        requirements versions django
+
+    Show all versions:
+        requirements versions requests --all
+
+    Show specific number of versions:
+        requirements versions django --limit 20
+
+    Use with private index (Nexus, Artifactory, etc.):
+        requirements versions mypackage --index-url https://nexus.example.com/repository/pypi/simple
+
+    Pipe to other commands:
+        requirements versions requests --all | grep "2.28"
+        requirements versions django --all | less
+
+    \b
+    Args:
+    package_name: Name of the package to query.
+
+    \b
+    Options:
+    --all: Show all available versions instead of just recent ones.
+    --limit: Number of versions to show (default: 10, ignored if --all is used).
+    --index-url: Custom package index URL for private repositories.
+
+    \b
+    Note:
+    - Requires pip 21.2+ (pip index versions is stable since pip 25.1)
+    - Works with PyPI, Nexus, Artifactory, DevPI, and other PEP 503 indexes
+    - Respects pip configuration (~/.pip/pip.conf, PIP_INDEX_URL env var)
+    - Output is suitable for piping to grep, less, or other commands
+    """
+    # Build the pip command
+    cmd = ["pip", "index", "versions", package_name]
+    if index_url:
+        cmd.extend(["--index-url", index_url])
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            error_msg = result.stderr.strip() or result.stdout.strip()
+            if "No matching distribution found" in error_msg:
+                raise click.ClickException(f"Package '{package_name}' not found")
+            if "index" in error_msg.lower() and "versions" in error_msg.lower():
+                raise click.ClickException(
+                    "pip index versions requires pip 21.2+. "
+                    "Please upgrade pip: pip install --upgrade pip"
+                )
+            raise click.ClickException(f"Failed to query versions: {error_msg}")
+
+        latest, versions = _parse_pip_index_versions(result.stdout)
+
+        if not versions:
+            raise click.ClickException(f"No versions found for '{package_name}'")
+
+        # Display header
+        if latest:
+            click.echo(
+                f"{click.style(package_name, fg='cyan', bold=True)} "
+                f"(latest: {click.style(latest, fg='green')})"
+            )
+        else:
+            click.echo(click.style(package_name, fg="cyan", bold=True))
+
+        # Determine how many versions to show
+        total_versions = len(versions)
+        display_versions = versions if show_all else versions[:limit]
+
+        # Display versions
+        click.echo(f"Available versions: {', '.join(display_versions)}")
+
+        # Show hint if there are more versions
+        if not show_all and total_versions > limit:
+            click.echo(
+                click.style(
+                    f"(showing {limit} of {total_versions} versions, "
+                    "use --all for complete list)",
+                    fg="yellow",
+                )
+            )
+
+    except FileNotFoundError as e:
+        raise click.ClickException(
+            "pip not found. Please ensure pip is installed and in your PATH."
+        ) from e
 
 
 if __name__ == "__main__":

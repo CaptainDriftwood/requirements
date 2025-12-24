@@ -19,6 +19,7 @@ It provides functionalities to add, update, remove, find, sort, and view package
 - **Remove**: Remove a package from `requirements.txt` files
 - **Sort**: Sort packages alphabetically in `requirements.txt` files
 - **Cat**: View the contents of `requirements.txt` files
+- **Versions**: Query available versions from PyPI or private indexes
 - **Smart exclusions**: Automatically skips `.venv`, `venv`, `virtualenv`, and `.aws-sam` directories
 - **URL support**: Handles VCS URLs (`git+https://...`) and PEP 440 URL requirements
 
@@ -160,6 +161,33 @@ Preview sorting changes before applying.
 requirements sort /path/to/project
 ```
 Sort requirements files in a specific path.
+
+#### Query package versions
+```bash
+requirements versions requests
+```
+Show the 10 most recent versions of a package from PyPI.
+
+```bash
+requirements versions django --all
+```
+Show all available versions.
+
+```bash
+requirements versions requests --limit 20
+```
+Show a specific number of versions.
+
+```bash
+requirements versions mypackage --index-url https://nexus.example.com/repository/pypi/simple
+```
+Query versions from a private index (Nexus, Artifactory, etc.).
+
+```bash
+requirements versions requests --all | grep "2.28"
+requirements versions django --all | less
+```
+Pipe output to other commands for filtering.
 
 ### Advanced Usage
 
