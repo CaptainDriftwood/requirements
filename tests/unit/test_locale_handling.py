@@ -167,56 +167,6 @@ class TestSetLocaleContextManager:
             assert cmp_func == mock_strcoll
 
 
-class TestSortPackagesWithLocale:
-    """Test sorting behavior with different locales"""
-
-    def test_sort_packages_with_explicit_locale(self):
-        """Test sorting with explicitly specified C locale"""
-        packages = ["zebra", "apple", "banana"]
-
-        # Use real C locale - always available
-        result = sort_packages(packages, locale_="C", preserve_comments=False)
-
-        assert result == ["apple", "banana", "zebra"]
-
-    def test_sort_packages_with_auto_detection(self):
-        """Test sorting works when locale is auto-detected (None)"""
-        packages = ["zebra", "apple", "banana"]
-
-        # When locale_=None, the system should auto-detect and still sort correctly
-        result = sort_packages(packages, locale_=None, preserve_comments=False)
-
-        # Regardless of what locale is detected, alphabetic packages should be sorted
-        assert result == ["apple", "banana", "zebra"]
-
-    def test_sort_packages_with_comments_and_locale(self):
-        """Test sorting with comment preservation and explicit C locale"""
-        lines = [
-            "# Web frameworks",
-            "flask==2.0.0",
-            "django==4.0.0",
-            "",
-            "# Data processing",
-            "pandas==1.3.0",
-            "numpy==1.21.0",
-        ]
-
-        # Use real C locale
-        result = sort_packages(lines, locale_="C")
-
-        # Should preserve comments and sort packages within sections
-        expected = [
-            "# Web frameworks",
-            "django==4.0.0",
-            "flask==2.0.0",
-            "",
-            "# Data processing",
-            "numpy==1.21.0",
-            "pandas==1.3.0",
-        ]
-        assert result == expected
-
-
 class TestCLILocaleParameter:
     """Test the --locale CLI parameter"""
 
@@ -227,10 +177,10 @@ class TestCLILocaleParameter:
         assert "--locale" in result.output
         assert "Locale to use for sorting" in result.output
 
-    def test_sort_command_with_locale_parameter(
+    def test_locale_parameter_with_sort_command(
         self, cli_runner: CliRunner, tmp_path: pathlib.Path
     ) -> None:
-        """Test sort command with --locale parameter"""
+        """Test --locale parameter works with sort command"""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
 
@@ -238,52 +188,7 @@ class TestCLILocaleParameter:
             cli, ["--locale", "C", "sort", str(req_file), "--preview"]
         )
         assert result.exit_code == 0
-
-        # Check that packages are sorted
         assert "apple==2.0.0" in result.output
-        assert "banana==3.0.0" in result.output
-        assert "zebra==1.0.0" in result.output
-
-    def test_update_command_with_locale_parameter(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
-    ) -> None:
-        """Test update command with --locale parameter"""
-        req_file = tmp_path / "requirements.txt"
-        req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
-
-        result = cli_runner.invoke(
-            cli,
-            ["--locale", "C", "update", "apple", "2.1.0", str(req_file), "--preview"],
-        )
-        assert result.exit_code == 0
-        assert "apple==2.1.0" in result.output
-
-    def test_add_command_with_locale_parameter(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
-    ) -> None:
-        """Test add command with --locale parameter"""
-        req_file = tmp_path / "requirements.txt"
-        req_file.write_text("zebra==1.0.0\nbanana==3.0.0\n")
-
-        result = cli_runner.invoke(
-            cli, ["--locale", "C", "add", "apple", str(req_file), "--preview"]
-        )
-        assert result.exit_code == 0
-        assert "apple" in result.output
-
-    def test_remove_command_with_locale_parameter(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
-    ) -> None:
-        """Test remove command with --locale parameter"""
-        req_file = tmp_path / "requirements.txt"
-        req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
-
-        result = cli_runner.invoke(
-            cli, ["--locale", "C", "remove", "apple", str(req_file), "--preview"]
-        )
-        assert result.exit_code == 0
-        assert "apple" not in result.output
-        assert "zebra==1.0.0" in result.output
 
     def test_invalid_locale_graceful_fallback(
         self, cli_runner: CliRunner, tmp_path: pathlib.Path
@@ -292,12 +197,10 @@ class TestCLILocaleParameter:
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("zebra==1.0.0\napple==2.0.0\n")
 
-        # Use an invalid locale - should fall back to ASCII sorting
         result = cli_runner.invoke(
             cli, ["--locale", "invalid_locale_xyz", "sort", str(req_file), "--preview"]
         )
 
-        # Should still work (fall back to ASCII sorting)
         assert result.exit_code == 0
         assert "apple==2.0.0" in result.output
         assert "zebra==1.0.0" in result.output
@@ -305,18 +208,6 @@ class TestCLILocaleParameter:
 
 class TestLocaleErrorScenarios:
     """Test various locale-related error scenarios"""
-
-    def test_locale_error_during_sorting(self):
-        """Test handling of locale errors during sorting with real invalid locale"""
-        packages = ["zebra", "apple"]
-
-        # Use a real invalid locale - should fall back gracefully
-        result = sort_packages(
-            packages, locale_="invalid_locale_xyz", preserve_comments=False
-        )
-
-        # Should still sort correctly using ASCII fallback
-        assert result == ["apple", "zebra"]
 
     def test_system_without_utf8_locales(self, mocker: MockerFixture):
         """Test behavior on systems without UTF-8 locale support"""

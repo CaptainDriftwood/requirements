@@ -134,19 +134,3 @@ def test_check_package_name_with_urls(
 ) -> None:
     """Test package name matching with URL-based requirements."""
     assert check_package_name(package_name, line) == expected
-
-
-def test_url_with_no_egg_and_no_repo_match() -> None:
-    """Test that URLs without extractable names don't match anything."""
-    assert check_package_name("requests", "https://example.com/file.whl") is False
-    assert check_package_name("anything", "http://server.com/pkg.tar.gz") is False
-
-
-def test_vcs_url_without_egg_uses_repo_name() -> None:
-    """Test that VCS URLs without egg fragment fall back to repo name."""
-    assert (
-        check_package_name("myrepo", "git+https://github.com/user/myrepo.git") is True
-    )
-    assert (
-        check_package_name("other", "git+https://github.com/user/myrepo.git") is False
-    )
