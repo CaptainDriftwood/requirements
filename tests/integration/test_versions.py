@@ -1,55 +1,22 @@
 """Tests for the versions command."""
 
-import subprocess
+import pathlib
+import urllib.error
+from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
-from pytest_mock import MockerFixture
 
-from src.main import _parse_pip_index_versions, cli
+from src.main import cli
 
 
-class TestParsePipIndexVersions:
-    """Test the pip index versions output parser."""
-
-    def test_parse_standard_output(self) -> None:
-        """Test parsing standard pip index versions output."""
-        output = """requests (2.32.5)
-Available versions: 2.32.5, 2.32.4, 2.32.3, 2.32.2, 2.32.1"""
-
-        latest, versions = _parse_pip_index_versions(output)
-
-        assert latest == "2.32.5"
-        assert versions == ["2.32.5", "2.32.4", "2.32.3", "2.32.2", "2.32.1"]
-
-    def test_parse_many_versions(self) -> None:
-        """Test parsing output with many versions."""
-        output = """django (5.0.0)
-Available versions: 5.0.0, 4.2.8, 4.2.7, 4.2.6, 4.2.5, 4.2.4, 4.2.3, 4.2.2, 4.2.1, 4.2.0, 4.1.13, 4.1.12"""
-
-        latest, versions = _parse_pip_index_versions(output)
-
-        assert latest == "5.0.0"
-        assert len(versions) == 12
-        assert versions[0] == "5.0.0"
-        assert versions[-1] == "4.1.12"
-
-    def test_parse_empty_output(self) -> None:
-        """Test parsing empty output."""
-        output = ""
-
-        latest, versions = _parse_pip_index_versions(output)
-
-        assert latest is None
-        assert versions == []
-
-    def test_parse_no_versions_line(self) -> None:
-        """Test parsing output without versions line."""
-        output = """requests (2.32.5)"""
-
-        latest, versions = _parse_pip_index_versions(output)
-
-        assert latest == "2.32.5"
-        assert versions == []
+@pytest.fixture
+def requests_simple_html() -> str:
+    """Load the requests package Simple API HTML fixture."""
+    fixture_path = (
+        pathlib.Path(__file__).parent.parent / "fixtures" / "pypi_simple_requests.html"
+    )
+    return fixture_path.read_text()
 
 
 class TestVersionsCommand:
@@ -65,221 +32,225 @@ class TestVersionsCommand:
         assert "--index-url" in result.output
 
     def test_versions_command_success(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
-        """Test successful versions query with mocked subprocess."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=0,
-            stdout="requests (2.32.5)\nAvailable versions: 2.32.5, 2.32.4, 2.32.3, 2.32.2, 2.32.1, 2.32.0, 2.31.0, 2.30.0, 2.29.0, 2.28.2, 2.28.1, 2.28.0\n",
-            stderr="",
-        )
+        """Test successful versions query with mocked HTTP response."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "requests"])
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 0
         assert "requests" in result.output
-        assert "2.32.5" in result.output
-        assert "showing 10 of 12 versions" in result.output
+        assert "2.32.3" in result.output  # Latest version
+        assert "latest" in result.output
 
     def test_versions_command_all_flag(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
         """Test versions command with --all flag."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=0,
-            stdout="requests (2.32.5)\nAvailable versions: 2.32.5, 2.32.4, 2.32.3, 2.32.2, 2.32.1, 2.32.0, 2.31.0, 2.30.0, 2.29.0, 2.28.2, 2.28.1, 2.28.0\n",
-            stderr="",
-        )
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "requests", "--all"])
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "requests", "--all"])
 
         assert result.exit_code == 0
         assert "requests" in result.output
-        # All 12 versions should be shown
+        # All 4 non-yanked versions should be shown
+        assert "2.32.3" in result.output
+        assert "2.31.0" in result.output
+        assert "2.28.1" in result.output
         assert "2.28.0" in result.output
         # No "showing X of Y" hint
-        assert (
-            "showing" not in result.output.lower() or "use --all" not in result.output
-        )
+        assert "use --all" not in result.output
 
     def test_versions_command_limit_flag(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
         """Test versions command with --limit flag."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=0,
-            stdout="requests (2.32.5)\nAvailable versions: 2.32.5, 2.32.4, 2.32.3, 2.32.2, 2.32.1, 2.32.0\n",
-            stderr="",
-        )
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "requests", "--limit", "3"])
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "requests", "--limit", "2"])
 
         assert result.exit_code == 0
-        assert "2.32.5" in result.output
-        assert "showing 3 of 6 versions" in result.output
+        assert "2.32.3" in result.output
+        assert "showing 2 of 4 versions" in result.output
 
     def test_versions_command_index_url(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
         """Test versions command with --index-url flag."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=[
-                "pip",
-                "index",
-                "versions",
-                "mypackage",
-                "--index-url",
-                "https://nexus.example.com/simple",
-            ],
-            returncode=0,
-            stdout="mypackage (1.0.0)\nAvailable versions: 1.0.0, 0.9.0, 0.8.0\n",
-            stderr="",
-        )
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(
-            cli,
-            [
-                "versions",
-                "mypackage",
-                "--index-url",
-                "https://nexus.example.com/simple",
-            ],
-        )
+        with patch(
+            "urllib.request.urlopen", return_value=mock_response
+        ) as mock_urlopen:
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "versions",
+                    "requests",
+                    "--index-url",
+                    "https://nexus.example.com/simple",
+                ],
+            )
 
         assert result.exit_code == 0
-        mock_run.assert_called_once()
-        call_args = (
-            mock_run.call_args[1]["args"]
-            if "args" in mock_run.call_args[1]
-            else mock_run.call_args[0][0]
-        )
-        assert "--index-url" in call_args
-        assert "https://nexus.example.com/simple" in call_args
+        # Verify the custom index URL was used
+        call_args = mock_urlopen.call_args
+        request = call_args[0][0]
+        assert "nexus.example.com" in request.full_url
 
-    def test_versions_command_package_not_found(
-        self, cli_runner: CliRunner, mocker: MockerFixture
-    ) -> None:
+    def test_versions_command_package_not_found(self, cli_runner: CliRunner) -> None:
         """Test versions command when package is not found."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "nonexistent-package-xyz"],
-            returncode=1,
-            stdout="",
-            stderr="ERROR: No matching distribution found for nonexistent-package-xyz",
+        error = urllib.error.HTTPError(
+            url="https://pypi.org/simple/nonexistent/",
+            code=404,
+            msg="Not Found",
+            hdrs={},  # type: ignore[arg-type]
+            fp=None,
         )
 
-        result = cli_runner.invoke(cli, ["versions", "nonexistent-package-xyz"])
+        with patch("urllib.request.urlopen", side_effect=error):
+            result = cli_runner.invoke(cli, ["versions", "nonexistent-package-xyz"])
 
         assert result.exit_code == 1
         assert "not found" in result.output.lower()
 
-    def test_versions_command_pip_not_found(
-        self, cli_runner: CliRunner, mocker: MockerFixture
-    ) -> None:
-        """Test versions command when pip is not installed."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.side_effect = FileNotFoundError("pip not found")
+    def test_versions_command_network_error(self, cli_runner: CliRunner) -> None:
+        """Test versions command with network error."""
+        error = urllib.error.URLError("Connection refused")
 
-        result = cli_runner.invoke(cli, ["versions", "requests"])
+        with patch("urllib.request.urlopen", side_effect=error):
+            result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 1
-        assert "pip not found" in result.output.lower()
+        assert "Network error" in result.output
 
     def test_versions_fewer_than_limit(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
         """Test versions command when there are fewer versions than limit."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "small-package"],
-            returncode=0,
-            stdout="small-package (1.0.0)\nAvailable versions: 1.0.0, 0.9.0, 0.8.0\n",
-            stderr="",
-        )
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "small-package"])
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 0
-        assert "1.0.0" in result.output
-        assert "0.9.0" in result.output
-        assert "0.8.0" in result.output
-        # No "showing X of Y" hint when all versions are shown
+        # We have 4 versions, default limit is 10, so no "use --all" hint
         assert "use --all" not in result.output
 
-    def test_versions_command_old_pip_version(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+    def test_versions_excludes_yanked(
+        self, cli_runner: CliRunner, requests_simple_html: str
     ) -> None:
-        """Test versions command with old pip version that doesn't support index versions."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=1,
-            stdout="",
-            stderr="ERROR: unknown command 'index versions'",
+        """Test that yanked versions are excluded by default."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "requests", "--all"])
+
+        assert result.exit_code == 0
+        # 2.32.0 is yanked and should not appear
+        assert "2.32.0" not in result.output
+        # Other versions should appear
+        assert "2.32.3" in result.output
+        assert "2.31.0" in result.output
+
+    def test_versions_command_http_error(self, cli_runner: CliRunner) -> None:
+        """Test versions command with HTTP error (not 404)."""
+        error = urllib.error.HTTPError(
+            url="https://pypi.org/simple/requests/",
+            code=500,
+            msg="Internal Server Error",
+            hdrs={},  # type: ignore[arg-type]
+            fp=None,
         )
 
-        result = cli_runner.invoke(cli, ["versions", "requests"])
+        with patch("urllib.request.urlopen", side_effect=error):
+            result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 1
-        assert "pip 21.2+" in result.output
+        assert "HTTP error" in result.output
 
-    def test_versions_command_generic_error(
-        self, cli_runner: CliRunner, mocker: MockerFixture
-    ) -> None:
-        """Test versions command with a generic pip error."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=1,
-            stdout="",
-            stderr="ERROR: Some unexpected error occurred",
-        )
+    def test_versions_no_versions_found(self, cli_runner: CliRunner) -> None:
+        """Test versions command when no versions are found."""
+        empty_html = """
+        <!DOCTYPE html>
+        <html><body><h1>Links for empty-package</h1></body></html>
+        """
+        mock_response = MagicMock()
+        mock_response.read.return_value = empty_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "requests"])
-
-        assert result.exit_code == 1
-        assert "Failed to query versions" in result.output
-
-    def test_versions_command_no_versions_found(
-        self, cli_runner: CliRunner, mocker: MockerFixture
-    ) -> None:
-        """Test versions command when pip returns success but no versions."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=0,
-            stdout="requests ()\n",  # Malformed output with no versions
-            stderr="",
-        )
-
-        result = cli_runner.invoke(cli, ["versions", "requests"])
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = cli_runner.invoke(cli, ["versions", "empty-package"])
 
         assert result.exit_code == 1
         assert "No versions found" in result.output
 
-    def test_versions_command_without_latest(
-        self, cli_runner: CliRunner, mocker: MockerFixture
+    def test_versions_one_per_line_flag(
+        self,
+        cli_runner: CliRunner,
+        requests_simple_html: str,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test versions command when output doesn't include latest version."""
-        mock_run = mocker.patch("src.main.subprocess.run")
-        mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "requests"],
-            returncode=0,
-            stdout="Available versions: 2.32.5, 2.32.4, 2.32.3\n",  # No (latest) line
-            stderr="",
-        )
+        """Test versions command with -1/--one-per-line flag."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
 
-        result = cli_runner.invoke(cli, ["versions", "requests"])
+        monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_response)
+
+        result = cli_runner.invoke(cli, ["versions", "requests", "-1"])
 
         assert result.exit_code == 0
-        assert "requests" in result.output
-        assert "2.32.5" in result.output
-        # Should not show "latest:" since it wasn't in output
-        assert "latest:" not in result.output
+        # Each version should be on its own line
+        lines = result.output.strip().split("\n")
+        # First line is the package header, then versions
+        assert "2.32.3" in lines[1]
+        assert "2.31.0" in lines[2]
+        # Should not have comma-separated output
+        assert "Available versions:" not in result.output
+
+    def test_versions_one_per_line_long_flag(
+        self,
+        cli_runner: CliRunner,
+        requests_simple_html: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test versions command with --one-per-line long flag."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_response)
+
+        result = cli_runner.invoke(cli, ["versions", "requests", "--one-per-line"])
+
+        assert result.exit_code == 0
+        # Should not have comma-separated output
+        assert "Available versions:" not in result.output
+        # Versions should be on separate lines
+        assert "2.32.3\n" in result.output

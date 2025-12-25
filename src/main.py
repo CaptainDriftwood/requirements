@@ -1,11 +1,12 @@
 """CLI for managing requirements.txt files."""
 
-import subprocess
+import urllib.error
 
 import click
 
 from src.files import check_file_writable, gather_requirements_files, resolve_paths
 from src.packages import check_package_name, validate_version_specifier
+from src.pypi import fetch_package_versions
 from src.sorting import sort_packages
 
 
@@ -420,29 +421,6 @@ def cat_requirements(paths: tuple[str]) -> None:
         click.echo()
 
 
-def _parse_pip_index_versions(output: str) -> tuple[str | None, list[str]]:
-    """Parse the output of 'pip index versions' command.
-
-    Returns:
-        Tuple of (latest_version, list_of_all_versions)
-    """
-    import re  # noqa: PLC0415
-
-    versions: list[str] = []
-    latest: str | None = None
-
-    for line in output.strip().splitlines():
-        if "(" in line and ")" in line:
-            match = re.search(r"\(([^)]+)\)", line)
-            if match:
-                latest = match.group(1)
-        elif line.startswith("Available versions:"):
-            version_str = line.replace("Available versions:", "").strip()
-            versions = [v.strip() for v in version_str.split(",") if v.strip()]
-
-    return latest, versions
-
-
 @cli.command(name="versions")
 @click.argument("package_name")
 @click.option(
@@ -458,6 +436,13 @@ def _parse_pip_index_versions(output: str) -> tuple[str | None, list[str]]:
     help="Number of versions to show (default: 10)",
 )
 @click.option(
+    "-1",
+    "--one-per-line",
+    "one_per_line",
+    is_flag=True,
+    help="Print each version on its own line (useful for piping)",
+)
+@click.option(
     "--index-url",
     help="Custom PyPI index URL (e.g., private Nexus repository)",
     metavar="URL",
@@ -466,6 +451,7 @@ def show_versions(
     package_name: str,
     show_all: bool,
     limit: int,
+    one_per_line: bool,
     index_url: str | None,
 ) -> None:
     """Show available versions of a package from PyPI.
@@ -494,37 +480,16 @@ def show_versions(
 
     \b
     Note:
-    - Requires pip 21.2+ (pip index versions is stable since pip 25.1)
-    - Works with PyPI, Nexus, Artifactory, DevPI, and other PEP 503 indexes
-    - Respects pip configuration (~/.pip/pip.conf, PIP_INDEX_URL env var)
+    - Works with PyPI, Nexus, Artifactory, DevPI, and any PEP 503 compliant index
+    - Uses the Simple API (PEP 503) to query package versions
     """
-    cmd = ["pip", "index", "versions", package_name]
-    if index_url:
-        cmd.extend(["--index-url", index_url])
-
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        if result.returncode != 0:
-            error_msg = result.stderr.strip() or result.stdout.strip()
-            if "No matching distribution found" in error_msg:
-                raise click.ClickException(f"Package '{package_name}' not found")
-            if "index" in error_msg.lower() and "versions" in error_msg.lower():
-                raise click.ClickException(
-                    "pip index versions requires pip 21.2+. "
-                    "Please upgrade pip: pip install --upgrade pip"
-                )
-            raise click.ClickException(f"Failed to query versions: {error_msg}")
-
-        latest, versions = _parse_pip_index_versions(result.stdout)
+        versions = fetch_package_versions(package_name, index_url)
 
         if not versions:
             raise click.ClickException(f"No versions found for '{package_name}'")
+
+        latest = versions[0] if versions else None
 
         if latest:
             click.echo(
@@ -537,21 +502,27 @@ def show_versions(
         total_versions = len(versions)
         display_versions = versions if show_all else versions[:limit]
 
-        click.echo(f"Available versions: {', '.join(display_versions)}")
+        if one_per_line:
+            for version in display_versions:
+                click.echo(version)
+        else:
+            click.echo(f"Available versions: {', '.join(display_versions)}")
 
-        if not show_all and total_versions > limit:
-            click.echo(
-                click.style(
-                    f"(showing {limit} of {total_versions} versions, "
-                    "use --all for complete list)",
-                    fg="yellow",
+            if not show_all and total_versions > limit:
+                click.echo(
+                    click.style(
+                        f"(showing {limit} of {total_versions} versions, "
+                        "use --all for complete list)",
+                        fg="yellow",
+                    )
                 )
-            )
 
-    except FileNotFoundError as e:
-        raise click.ClickException(
-            "pip not found. Please ensure pip is installed and in your PATH."
-        ) from e
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise click.ClickException(f"Package '{package_name}' not found") from e
+        raise click.ClickException(f"HTTP error: {e}") from e
+    except urllib.error.URLError as e:
+        raise click.ClickException(f"Network error: {e.reason}") from e
 
 
 if __name__ == "__main__":
