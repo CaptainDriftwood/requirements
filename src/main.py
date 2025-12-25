@@ -891,7 +891,7 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
 @cli.command(name="cat")
 @click.argument("paths", nargs=-1)
 def cat_requirements(paths: tuple[str]) -> None:
-    r"""Display the contents of requirements.txt files.
+    """Display the contents of requirements.txt files.
 
     Shows the content of one or more requirements.txt files with clear file headers.
     Useful for quickly viewing dependencies across multiple files or projects.
@@ -983,7 +983,7 @@ def show_versions(
     limit: int,
     index_url: str | None,
 ) -> None:
-    r"""Show available versions of a package from PyPI.
+    """Show available versions of a package from PyPI.
 
     Queries the package index (PyPI or a custom index) for available versions
     of the specified package. By default shows the 10 most recent versions.
