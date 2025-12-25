@@ -45,9 +45,7 @@ class TestFindPackage:
         assert result.exit_code == 0
         assert result.output.count("requirements.txt") == 4
 
-    def test_find_package_with_git_url(
-        self, cli_runner: CliRunner, tmp_path
-    ) -> None:
+    def test_find_package_with_git_url(self, cli_runner: CliRunner, tmp_path) -> None:
         """Test finding a package specified as a git URL with egg fragment."""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("git+https://github.com/user/mypackage.git#egg=mypackage\n")
@@ -81,9 +79,7 @@ class TestFindPackage:
         assert result.exit_code == 0
         assert "requirements.txt" in result.output
 
-    def test_find_package_url_verbose(
-        self, cli_runner: CliRunner, tmp_path
-    ) -> None:
+    def test_find_package_url_verbose(self, cli_runner: CliRunner, tmp_path) -> None:
         """Test finding a URL package with verbose output."""
         url_line = "git+https://github.com/user/repo.git@v1.0#egg=mypackage"
         req_file = tmp_path / "requirements.txt"
@@ -97,9 +93,7 @@ class TestFindPackage:
         assert "requirements.txt" in result.output
         assert url_line in result.output
 
-    def test_find_package_url_not_found(
-        self, cli_runner: CliRunner, tmp_path
-    ) -> None:
+    def test_find_package_url_not_found(self, cli_runner: CliRunner, tmp_path) -> None:
         """Test that non-matching URL packages are not found."""
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("git+https://github.com/user/other.git#egg=other\n")

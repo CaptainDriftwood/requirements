@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from src.main import check_file_writable
+from src.files import check_file_writable
 
 
 def test_check_file_writable_preview_mode():

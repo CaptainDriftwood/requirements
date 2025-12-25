@@ -3,7 +3,7 @@
 import click
 import pytest
 
-from src.main import validate_package_name
+from src.packages import validate_package_name
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,11 @@
 
 import pytest
 
-from src.main import _extract_package_from_url, _is_url_requirement, check_package_name
+from src.packages import (
+    _extract_package_from_url,
+    _is_url_requirement,
+    check_package_name,
+)
 
 # =============================================================================
 # Tests for _is_url_requirement

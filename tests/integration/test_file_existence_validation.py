@@ -2,11 +2,11 @@ import pathlib
 
 from click.testing import CliRunner
 
+from src.files import gather_requirements_files
 from src.main import (
     add_package,
     cat_requirements,
     find_package,
-    gather_requirements_files,
     remove_package,
     sort_requirements,
     update_package,

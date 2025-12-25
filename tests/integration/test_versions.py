@@ -102,7 +102,9 @@ class TestVersionsCommand:
         # All 12 versions should be shown
         assert "2.28.0" in result.output
         # No "showing X of Y" hint
-        assert "showing" not in result.output.lower() or "use --all" not in result.output
+        assert (
+            "showing" not in result.output.lower() or "use --all" not in result.output
+        )
 
     def test_versions_command_limit_flag(
         self, cli_runner: CliRunner, mocker: MockerFixture
@@ -128,7 +130,14 @@ class TestVersionsCommand:
         """Test versions command with --index-url flag."""
         mock_run = mocker.patch("src.main.subprocess.run")
         mock_run.return_value = subprocess.CompletedProcess(
-            args=["pip", "index", "versions", "mypackage", "--index-url", "https://nexus.example.com/simple"],
+            args=[
+                "pip",
+                "index",
+                "versions",
+                "mypackage",
+                "--index-url",
+                "https://nexus.example.com/simple",
+            ],
             returncode=0,
             stdout="mypackage (1.0.0)\nAvailable versions: 1.0.0, 0.9.0, 0.8.0\n",
             stderr="",
@@ -136,12 +145,21 @@ class TestVersionsCommand:
 
         result = cli_runner.invoke(
             cli,
-            ["versions", "mypackage", "--index-url", "https://nexus.example.com/simple"],
+            [
+                "versions",
+                "mypackage",
+                "--index-url",
+                "https://nexus.example.com/simple",
+            ],
         )
 
         assert result.exit_code == 0
         mock_run.assert_called_once()
-        call_args = mock_run.call_args[1]["args"] if "args" in mock_run.call_args[1] else mock_run.call_args[0][0]
+        call_args = (
+            mock_run.call_args[1]["args"]
+            if "args" in mock_run.call_args[1]
+            else mock_run.call_args[0][0]
+        )
         assert "--index-url" in call_args
         assert "https://nexus.example.com/simple" in call_args
 

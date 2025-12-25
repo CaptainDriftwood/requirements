@@ -4,7 +4,8 @@ import tempfile
 import pytest
 from click.testing import CliRunner
 
-from src.main import sort_packages, sort_requirements
+from src.main import sort_requirements
+from src.sorting import sort_packages
 
 
 @pytest.fixture
@@ -19,48 +20,33 @@ def packages() -> list[str]:
     ]
 
 
-def test_sort_with_no_locale(packages):
-    # Use explicit C locale for deterministic cross-platform behavior
-    result = sort_packages(packages, locale_="C")
+def test_sort_basic(packages: list[str]) -> None:
+    """Test basic sorting with C locale (ASCII) ordering."""
+    result = sort_packages(packages)
+    # Comments are filtered out, packages sorted, path refs at end
     assert result == [
-        "# some comment",
-        "./some_package",
         "apischema",
         "boto3",
         "python-dateutil",
         "requests",
-    ]
-
-
-def test_sort_with_invalid_locale(packages: list[str]) -> None:
-    """Test sorting with an invalid locale falls back to default sorting"""
-    result = sort_packages(packages, locale_="invalid_locale")
-    # Should fall back to default sorting (same as no locale)
-    expected = [
-        "# some comment",
         "./some_package",
-        "apischema",
-        "boto3",
-        "python-dateutil",
-        "requests",
     ]
-    assert result == expected
 
 
 def test_sort_empty_list() -> None:
-    """Test sorting an empty list"""
+    """Test sorting an empty list."""
     result = sort_packages([])
     assert result == []
 
 
 def test_sort_single_package() -> None:
-    """Test sorting a single package"""
+    """Test sorting a single package."""
     result = sort_packages(["single-package"])
     assert result == ["single-package"]
 
 
 def test_sort_with_mixed_formats() -> None:
-    """Test sorting packages with mixed version specifiers and formats"""
+    """Test sorting packages with mixed version specifiers and formats."""
     packages = [
         "zpackage>=1.0.0",
         "apache==2.0.0",
@@ -70,22 +56,21 @@ def test_sort_with_mixed_formats() -> None:
         "requests<3.0.0",
         "django!=2.0.0",
     ]
-    # Use explicit C locale for deterministic cross-platform behavior
-    result = sort_packages(packages, locale_="C")
+    result = sort_packages(packages)
+    # Comments filtered, packages sorted by name, path refs at end
     expected = [
-        "# Development dependencies",
-        "./local_package",
         "apache==2.0.0",
         "boto3~=1.17.0",
         "django!=2.0.0",
         "requests<3.0.0",
         "zpackage>=1.0.0",
+        "./local_package",
     ]
     assert result == expected
 
 
-def test_sort_with_comments_and_blank_lines() -> None:
-    """Test sorting packages with comments and blank lines (legacy behavior)"""
+def test_sort_filters_out_comments() -> None:
+    """Test that standalone comments are filtered out."""
     packages = [
         "zpackage",
         "# Main dependencies",
@@ -95,14 +80,9 @@ def test_sort_with_comments_and_blank_lines() -> None:
         "boto3",
         "",
     ]
-    # Use explicit C locale for deterministic cross-platform behavior
-    result = sort_packages(packages, preserve_comments=False, locale_="C")
-    # Comments and blank lines should be sorted alphabetically too (legacy behavior)
+    result = sort_packages(packages)
+    # Comments and blank lines should be filtered out
     expected = [
-        "",
-        "",
-        "# Dev dependencies",
-        "# Main dependencies",
         "apache",
         "boto3",
         "zpackage",
@@ -110,69 +90,24 @@ def test_sort_with_comments_and_blank_lines() -> None:
     assert result == expected
 
 
-def test_sort_with_comment_preservation() -> None:
-    """Test sorting packages while preserving comment associations"""
+def test_sort_preserves_inline_comments() -> None:
+    """Test that inline comments on package lines are preserved."""
     packages = [
-        "# Main dependencies",
-        "zpackage==1.0.0",
+        "zpackage==1.0.0  # pinned for security",
         "apache==2.0.0",
-        "",
-        "# Dev dependencies",
-        "boto3==1.18.0",
-        "zebra==0.5.0",
+        "boto3==1.18.0  # required for AWS",
     ]
-    result = sort_packages(packages, preserve_comments=True)
-    # Comments should stay with their associated packages
+    result = sort_packages(packages)
     expected = [
-        "# Main dependencies",
         "apache==2.0.0",
-        "zpackage==1.0.0",
-        "",
-        "# Dev dependencies",
-        "boto3==1.18.0",
-        "zebra==0.5.0",
-    ]
-    assert result == expected
-
-
-def test_sort_with_mixed_comments() -> None:
-    """Test sorting with various comment patterns"""
-    packages = [
-        "# Header comment",
-        "",
-        "# Web frameworks",
-        "zflask==2.0.0",
-        "django==3.2.0",
-        "",
-        "# Database",
-        "postgresql==12.0",
-        "# ORM layer",
-        "sqlalchemy==1.4.0",
-        "",
-        "# Utilities",
-        "requests==2.26.0",
-    ]
-    result = sort_packages(packages, preserve_comments=True)
-    expected = [
-        "# Header comment",
-        "",
-        "# Web frameworks",
-        "django==3.2.0",
-        "zflask==2.0.0",
-        "",
-        "# Database",
-        "# ORM layer",
-        "postgresql==12.0",
-        "sqlalchemy==1.4.0",
-        "",
-        "# Utilities",
-        "requests==2.26.0",
+        "boto3==1.18.0  # required for AWS",
+        "zpackage==1.0.0  # pinned for security",
     ]
     assert result == expected
 
 
 def test_sort_preserves_exact_package_strings() -> None:
-    """Test that sorting preserves exact package specification strings"""
+    """Test that sorting preserves exact package specification strings."""
     packages = [
         "package-z[extra]==1.0.0",
         "package-a>=2.0.0,<3.0.0",
@@ -187,64 +122,56 @@ def test_sort_preserves_exact_package_strings() -> None:
     assert result == expected
 
 
-@pytest.mark.parametrize(
-    "locale_name",
-    [
-        "C",
-        "POSIX",
-    ],
-)
-def test_sort_with_c_posix_locales(packages: list[str], locale_name: str) -> None:
-    """Test sorting with C and POSIX locales"""
-    result = sort_packages(packages, locale_=locale_name)
-    expected = [
-        "# some comment",
-        "./some_package",
-        "apischema",
+def test_sort_path_references_at_end() -> None:
+    """Test that path references are placed at the end."""
+    packages = [
+        "./local_package",
+        "zpackage",
+        "../shared_lib",
+        "apache",
+        "-e ./dev_package",
         "boto3",
-        "python-dateutil",
-        "requests",
+        "-e ../another_lib",
+    ]
+    result = sort_packages(packages)
+    expected = [
+        "apache",
+        "boto3",
+        "zpackage",
+        "./local_package",
+        "../shared_lib",
+        "-e ./dev_package",
+        "-e ../another_lib",
     ]
     assert result == expected
 
 
-@pytest.mark.parametrize(
-    "locale_name",
-    [
-        "en_US.UTF-8",
-        "en_GB.UTF-8",
-    ],
-)
-def test_sort_with_utf8_locales(packages: list[str], locale_name: str) -> None:
-    """Test sorting with UTF-8 locales.
-
-    Note: The exact sort order of special characters (./ and #) is OS-dependent
-    (macOS uses ICU, Linux uses glibc). We only assert that:
-    1. All items are present in the result
-    2. Alphabetic packages are sorted correctly
-    """
-    # Import here to avoid circular import issues
-    from src.main import _is_locale_available
-
-    if not _is_locale_available(locale_name):
-        pytest.skip(f"{locale_name} locale not available on this system")
-
-    result = sort_packages(packages, locale_=locale_name, preserve_comments=False)
-
-    # Verify all items are present
-    assert set(result) == set(packages)
-
-    # Verify alphabetic packages are sorted correctly
-    # (the position of ./ and # prefixed items is OS-dependent)
-    alpha_packages = [p for p in result if p[0].isalpha()]
-    assert alpha_packages == ["apischema", "boto3", "python-dateutil", "requests"]
+def test_sort_case_sensitive() -> None:
+    """Test that sorting is case-sensitive (C locale / ASCII order)."""
+    packages = [
+        "Zpackage",
+        "apache",
+        "Apache",
+        "BOTO3",
+        "boto3",
+    ]
+    result = sort_packages(packages)
+    # C locale: uppercase before lowercase (A-Z: 65-90, a-z: 97-122)
+    expected = [
+        "Apache",
+        "BOTO3",
+        "Zpackage",
+        "apache",
+        "boto3",
+    ]
+    assert result == expected
 
 
 class TestSortRequirementsCommand:
-    """Test sort_requirements CLI command functionality"""
+    """Test sort_requirements CLI command functionality."""
 
     def test_sort_requirements_file(self, cli_runner: CliRunner) -> None:
-        """Test sorting a requirements file"""
+        """Test sorting a requirements file."""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
             requirements_file.write_text("zpackage\napache\nboto3\n")
@@ -257,7 +184,7 @@ class TestSortRequirementsCommand:
             assert contents == "apache\nboto3\nzpackage\n"
 
     def test_sort_already_sorted_file(self, cli_runner: CliRunner) -> None:
-        """Test sorting an already sorted requirements file"""
+        """Test sorting an already sorted requirements file."""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
             requirements_file.write_text("apache\nboto3\nzpackage\n")
@@ -267,7 +194,7 @@ class TestSortRequirementsCommand:
             assert "already sorted" in result.output
 
     def test_sort_requirements_with_preview(self, cli_runner: CliRunner) -> None:
-        """Test sorting requirements with preview flag"""
+        """Test sorting requirements with preview flag."""
         with tempfile.TemporaryDirectory() as td:
             requirements_file = pathlib.Path(td) / "requirements.txt"
             requirements_file.write_text("zpackage\napache\nboto3\n")
@@ -279,3 +206,27 @@ class TestSortRequirementsCommand:
             # Verify file unchanged
             contents = requirements_file.read_text()
             assert contents == "zpackage\napache\nboto3\n"
+
+    def test_sort_removes_comments(self, cli_runner: CliRunner) -> None:
+        """Test that sorting removes standalone comments."""
+        with tempfile.TemporaryDirectory() as td:
+            requirements_file = pathlib.Path(td) / "requirements.txt"
+            requirements_file.write_text("# Header\nzpackage\n# Comment\napache\n")
+
+            result = cli_runner.invoke(sort_requirements, [td])
+            assert result.exit_code == 0
+
+            contents = requirements_file.read_text()
+            assert contents == "apache\nzpackage\n"
+
+    def test_sort_preserves_inline_comments(self, cli_runner: CliRunner) -> None:
+        """Test that sorting preserves inline comments."""
+        with tempfile.TemporaryDirectory() as td:
+            requirements_file = pathlib.Path(td) / "requirements.txt"
+            requirements_file.write_text("zpackage==1.0.0  # pinned\napache==2.0.0\n")
+
+            result = cli_runner.invoke(sort_requirements, [td])
+            assert result.exit_code == 0
+
+            contents = requirements_file.read_text()
+            assert contents == "apache==2.0.0\nzpackage==1.0.0  # pinned\n"
