@@ -7,6 +7,7 @@
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
@@ -392,7 +393,7 @@ just lint             # Run ruff linter
 just format           # Format code with ruff
 just type             # Run ty type checking
 just check            # Run all quality checks
-just nox              # Run tests across Python 3.11, 3.12, 3.13
+just nox              # Run tests across Python 3.11, 3.12, 3.13, 3.14
 just build            # Build the package
 just install          # Install in development mode
 just clean            # Clean build artifacts
