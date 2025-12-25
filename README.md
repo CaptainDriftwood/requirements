@@ -3,13 +3,34 @@
 <img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
 
 [![CI](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)](https://github.com/CaptainDriftwood/requirements)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
+[![Nox](https://img.shields.io/badge/testing-nox-blue.svg)](https://nox.thea.codes/)
+[![Built with Click](https://img.shields.io/badge/built%20with-Click-blue.svg)](https://click.palletsprojects.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.  
+A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.
 It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Basic Commands](#basic-commands)
+  - [Advanced Usage](#advanced-usage)
+  - [Command Options](#command-options)
+  - [Examples](#examples)
+  - [Version Specifier Examples](#version-specifier-examples)
+  - [Inline Comment Preservation](#inline-comment-preservation)
+  - [Excluded Paths](#excluded-paths)
+- [Development](#development)
+- [References](#references)
+- [License](#license)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -184,8 +205,13 @@ requirements versions mypackage --index-url https://nexus.example.com/repository
 Query versions from a private index (Nexus, Artifactory, etc.).
 
 ```bash
-requirements versions requests --all | grep "2.28"
-requirements versions django --all | less
+requirements versions requests -1
+```
+Print each version on its own line (useful for piping to other commands).
+
+```bash
+requirements versions requests -1 | head -5
+requirements versions django --all -1 | grep "^4\."
 ```
 Pipe output to other commands for filtering.
 
@@ -215,7 +241,6 @@ requirements update requests "2.28.0" --preview
 
 **Global options (apply to all commands):**
 - `--version`: Show the version and exit
-- `--locale LOCALE`: Locale for sorting (e.g., `en_US.UTF-8`, `C`). Auto-detected if not specified
 - `--help`: Show help message
 
 **All commands:**
@@ -226,6 +251,12 @@ requirements update requests "2.28.0" --preview
 
 **find:**
 - `--verbose`: Show the actual package line from the requirements file
+
+**versions:**
+- `--all`: Show all available versions (default: 10 most recent)
+- `--limit N`: Number of versions to show (default: 10)
+- `-1` / `--one-per-line`: Print each version on its own line
+- `--index-url URL`: Custom PyPI index URL (e.g., private Nexus repository)
 
 ### Examples
 
@@ -290,54 +321,21 @@ requirements update django ">=4.2.0a1"
 requirements update mypackage "==1.0.0+local"
 ```
 
-### Comment Preservation
+### Inline Comment Preservation
 
-All modification commands preserve comments and file structure:
+Inline comments on package lines are preserved when updating versions:
 
 ```bash
 # Before
-# Web frameworks
 django==3.2  # LTS version
 flask==2.0
 
 # After running: requirements update django 4.2
-# Web frameworks
 django==4.2  # LTS version
 flask==2.0
 ```
 
-**How it works:**
-- **Section comments** (lines starting with `#`) stay at the top of their section
-- **Inline comments** (after package name) are preserved when updating versions
-- **Blank lines** that separate logical sections are maintained
-- Packages are sorted alphabetically within each section
-
-### Locale Configuration
-
-The `--locale` option controls sorting behavior for package names. If not specified, the system locale is auto-detected.
-
-**Finding available locales on your system:**
-```bash
-# Linux/macOS
-locale -a
-```
-
-**Common locale values:**
-- `en_US.UTF-8` - US English with UTF-8 encoding
-- `en_GB.UTF-8` - British English with UTF-8 encoding
-- `C.UTF-8` - Minimal locale with UTF-8 (available on most systems)
-- `C` or `POSIX` - Basic ASCII sorting (always available)
-
-**Usage:**
-```bash
-# Use specific locale
-requirements sort --locale en_US.UTF-8
-
-# Force ASCII sorting
-requirements sort --locale C
-```
-
-If the specified locale is not available, the tool falls back to ASCII sorting with a warning.
+Note: Standalone comment lines (lines starting with `#`) are removed during sorting operations. Only inline comments attached to package lines are preserved.
 
 ### Excluded Paths
 
@@ -376,7 +374,7 @@ just format
 # Type checking
 just type
 
-# Run all checks (lint, type, test)
+# Run all checks (format, lint, type, test)
 just check
 
 # Run tests across Python versions with nox
@@ -400,6 +398,15 @@ just install          # Install in development mode
 just clean            # Clean build artifacts
 just upgrade          # Upgrade dependencies
 ```
+
+## References
+
+- [Click](https://click.palletsprojects.com/) - CLI framework
+- [uv](https://docs.astral.sh/uv/) - Python package manager
+- [Ruff](https://docs.astral.sh/ruff/) - Linter and formatter
+- [ty](https://github.com/astral-sh/ty) - Type checker
+- [just](https://just.systems/) - Command runner
+- [Nox](https://nox.thea.codes/) - Test automation
 
 ## License
 
