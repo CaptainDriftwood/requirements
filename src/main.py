@@ -891,7 +891,7 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
 @cli.command(name="cat")
 @click.argument("paths", nargs=-1)
 def cat_requirements(paths: tuple[str]) -> None:
-    """Display the contents of requirements.txt files.
+    r"""Display the contents of requirements.txt files.
 
     Shows the content of one or more requirements.txt files with clear file headers.
     Useful for quickly viewing dependencies across multiple files or projects.
@@ -939,6 +939,7 @@ def _parse_pip_index_versions(output: str) -> tuple[str | None, list[str]]:
 
     Returns:
         Tuple of (latest_version, list_of_all_versions)
+
     """
     versions: list[str] = []
     latest: str | None = None
@@ -982,7 +983,7 @@ def show_versions(
     limit: int,
     index_url: str | None,
 ) -> None:
-    """Show available versions of a package from PyPI.
+    r"""Show available versions of a package from PyPI.
 
     Queries the package index (PyPI or a custom index) for available versions
     of the specified package. By default shows the 10 most recent versions.
@@ -1039,24 +1040,28 @@ def show_versions(
         if result.returncode != 0:
             error_msg = result.stderr.strip() or result.stdout.strip()
             if "No matching distribution found" in error_msg:
-                raise click.ClickException(f"Package '{package_name}' not found")
+                msg = f"Package '{package_name}' not found"
+                raise click.ClickException(msg)
             if "index" in error_msg.lower() and "versions" in error_msg.lower():
-                raise click.ClickException(
+                msg = (
                     "pip index versions requires pip 21.2+. "
                     "Please upgrade pip: pip install --upgrade pip"
                 )
-            raise click.ClickException(f"Failed to query versions: {error_msg}")
+                raise click.ClickException(msg)
+            msg = f"Failed to query versions: {error_msg}"
+            raise click.ClickException(msg)
 
         latest, versions = _parse_pip_index_versions(result.stdout)
 
         if not versions:
-            raise click.ClickException(f"No versions found for '{package_name}'")
+            msg = f"No versions found for '{package_name}'"
+            raise click.ClickException(msg)
 
         # Display header
         if latest:
             click.echo(
                 f"{click.style(package_name, fg='cyan', bold=True)} "
-                f"(latest: {click.style(latest, fg='green')})"
+                f"(latest: {click.style(latest, fg='green')})",
             )
         else:
             click.echo(click.style(package_name, fg="cyan", bold=True))
@@ -1075,13 +1080,12 @@ def show_versions(
                     f"(showing {limit} of {total_versions} versions, "
                     "use --all for complete list)",
                     fg="yellow",
-                )
+                ),
             )
 
     except FileNotFoundError as e:
-        raise click.ClickException(
-            "pip not found. Please ensure pip is installed and in your PATH."
-        ) from e
+        msg = "pip not found. Please ensure pip is installed and in your PATH."
+        raise click.ClickException(msg) from e
 
 
 if __name__ == "__main__":
