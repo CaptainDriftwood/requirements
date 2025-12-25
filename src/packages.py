@@ -32,38 +32,6 @@ def validate_version_specifier(version_specifier: str) -> str:
         ) from e
 
 
-def validate_package_name(package_name: str) -> str:
-    """Validate a package name according to PEP 508 naming conventions.
-
-    Package names must:
-    - Start with a letter or digit
-    - Contain only letters, digits, hyphens, underscores, and periods
-    - Not be empty
-
-    Args:
-        package_name: The package name to validate.
-
-    Returns:
-        The validated package name (stripped of whitespace).
-
-    Raises:
-        click.ClickException: If the package name is invalid.
-    """
-    name = package_name.strip()
-
-    if not name:
-        raise click.ClickException("Package name cannot be empty")
-
-    if not re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$|^[a-zA-Z0-9]$", name):
-        raise click.ClickException(
-            f"Invalid package name '{name}'. Package names must start and end with "
-            "a letter or digit, and contain only letters, digits, hyphens, "
-            "underscores, and periods."
-        )
-
-    return name
-
-
 def check_package_name(package_name: str, line: str) -> bool:
     """Determine if a line contains the given package name.
 
