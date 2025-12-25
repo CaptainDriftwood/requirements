@@ -194,3 +194,74 @@ class TestVersionsCommand:
         assert "0.8.0" in result.output
         # No "showing X of Y" hint when all versions are shown
         assert "use --all" not in result.output
+
+    def test_versions_command_old_pip_version(
+        self, cli_runner: CliRunner, mocker: MockerFixture
+    ) -> None:
+        """Test versions command with old pip version that doesn't support index versions."""
+        mock_run = mocker.patch("src.main.subprocess.run")
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["pip", "index", "versions", "requests"],
+            returncode=1,
+            stdout="",
+            stderr="ERROR: unknown command 'index versions'",
+        )
+
+        result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 1
+        assert "pip 21.2+" in result.output
+
+    def test_versions_command_generic_error(
+        self, cli_runner: CliRunner, mocker: MockerFixture
+    ) -> None:
+        """Test versions command with a generic pip error."""
+        mock_run = mocker.patch("src.main.subprocess.run")
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["pip", "index", "versions", "requests"],
+            returncode=1,
+            stdout="",
+            stderr="ERROR: Some unexpected error occurred",
+        )
+
+        result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 1
+        assert "Failed to query versions" in result.output
+
+    def test_versions_command_no_versions_found(
+        self, cli_runner: CliRunner, mocker: MockerFixture
+    ) -> None:
+        """Test versions command when pip returns success but no versions."""
+        mock_run = mocker.patch("src.main.subprocess.run")
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["pip", "index", "versions", "requests"],
+            returncode=0,
+            stdout="requests ()\n",  # Malformed output with no versions
+            stderr="",
+        )
+
+        result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 1
+        assert "No versions found" in result.output
+
+    def test_versions_command_without_latest(
+        self, cli_runner: CliRunner, mocker: MockerFixture
+    ) -> None:
+        """Test versions command when output doesn't include latest version."""
+        mock_run = mocker.patch("src.main.subprocess.run")
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["pip", "index", "versions", "requests"],
+            returncode=0,
+            stdout="Available versions: 2.32.5, 2.32.4, 2.32.3\n",  # No (latest) line
+            stderr="",
+        )
+
+        result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 0
+        assert "requests" in result.output
+        assert "2.32.5" in result.output
+        # Should not show "latest:" since it wasn't in output
+        assert "latest:" not in result.output

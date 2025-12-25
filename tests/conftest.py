@@ -5,6 +5,16 @@ from collections.abc import Generator
 import pytest
 from click.testing import CliRunner
 
+from src.main import _LocaleCache
+
+
+@pytest.fixture(autouse=True)
+def reset_locale_cache() -> Generator[None, None, None]:
+    """Reset the global locale cache between tests to ensure test isolation."""
+    _LocaleCache.reset()
+    yield
+    _LocaleCache.reset()
+
 
 @pytest.fixture
 def cli_runner() -> Generator[CliRunner, None, None]:

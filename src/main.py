@@ -84,16 +84,34 @@ def _is_locale_available(locale_name: str) -> bool:
         return False
 
 
-# Cache the detected system locale to avoid repeated detection
-_SYSTEM_LOCALE = None
+class _LocaleCache:
+    """Cache for the detected system locale to avoid repeated detection."""
+
+    _instance: str | None = None
+    _detected: bool = False
+
+    @classmethod
+    def get(cls) -> str | None:
+        """Get the cached system locale, detecting it if not already cached."""
+        if not cls._detected:
+            cls._instance = get_system_locale()
+            cls._detected = True
+        return cls._instance
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset the cache (primarily for testing)."""
+        cls._instance = None
+        cls._detected = False
+
+
+# Backwards compatibility alias
+_SYSTEM_LOCALE = None  # Deprecated, use _LocaleCache instead
 
 
 def get_default_locale() -> str | None:
     """Get the cached system locale, detecting it if not already cached."""
-    global _SYSTEM_LOCALE
-    if _SYSTEM_LOCALE is None:
-        _SYSTEM_LOCALE = get_system_locale()
-    return _SYSTEM_LOCALE
+    return _LocaleCache.get()
 
 
 @contextmanager
@@ -255,9 +273,33 @@ def _sort_section(section: list[str], locale_: str | None = None) -> list[str]:
 
 
 def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
-    """
-    Find all requirements.txt files in the given paths, ignoring virtual environment/aws-sam
-    related directories
+    """Find all requirements.txt files in the given paths.
+
+    Recursively searches directories for requirements.txt files while applying
+    intelligent filtering to exclude virtual environments and build artifacts.
+
+    Features:
+        - Recursively searches directories using glob patterns
+        - Excludes virtual environments: .venv, venv, virtualenv, .aws-sam
+        - Skips symlinks to prevent infinite loops and unexpected behavior
+        - Validates files still exist after discovery (handles race conditions)
+        - Provides detailed error messages for invalid inputs
+
+    Args:
+        paths: List of files or directories to search. Each path is validated
+            and processed according to its type.
+
+    Returns:
+        Sorted list of valid requirements.txt file paths. Files are returned
+        in the order they are discovered during directory traversal.
+
+    Side Effects:
+        Prints error messages to stderr via click.echo for:
+        - Non-existent paths
+        - Files that aren't named requirements.txt
+        - Paths that are neither files nor directories
+        - Directories with no requirements.txt files
+        - Files that no longer exist after discovery
     """
     requirements_files = []
 
@@ -357,8 +399,48 @@ def validate_version_specifier(version_specifier: str) -> str:
         ) from e
 
 
+def validate_package_name(package_name: str) -> str:
+    """Validate a package name according to PEP 508 naming conventions.
+
+    Package names must:
+    - Start with a letter or digit
+    - Contain only letters, digits, hyphens, underscores, and periods
+    - Not be empty
+
+    Args:
+        package_name: The package name to validate
+
+    Returns:
+        The validated package name (stripped of whitespace)
+
+    Raises:
+        click.ClickException: If the package name is invalid
+    """
+    name = package_name.strip()
+
+    if not name:
+        raise click.ClickException("Package name cannot be empty")
+
+    # PEP 508 package name pattern: starts with alphanumeric, contains only
+    # alphanumeric, hyphens, underscores, and periods
+    if not re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$|^[a-zA-Z0-9]$", name):
+        raise click.ClickException(
+            f"Invalid package name '{name}'. Package names must start and end with "
+            "a letter or digit, and contain only letters, digits, hyphens, "
+            "underscores, and periods."
+        )
+
+    return name
+
+
 def _is_url_requirement(line: str) -> bool:
-    """Check if a line is a URL-based requirement (VCS, file://, http://, etc.)."""
+    """Check if a line is a URL-based requirement (VCS, file://, http://, etc.).
+
+    Handles:
+    - VCS URLs: git+https://..., hg+https://..., svn+..., bzr+...
+    - Direct URLs: http://..., https://..., file://...
+    - PEP 440 URL syntax: package @ https://...
+    """
     line_stripped = line.strip().lower()
     # VCS URLs: git+, hg+, svn+, bzr+
     # Direct URLs: http://, https://, file://
@@ -372,7 +454,11 @@ def _is_url_requirement(line: str) -> bool:
         "https://",
         "file://",
     )
-    return line_stripped.startswith(url_prefixes)
+    if line_stripped.startswith(url_prefixes):
+        return True
+
+    # Check for PEP 440 URL syntax: package @ URL
+    return " @ " in line_stripped
 
 
 def _extract_package_from_url(line: str) -> str | None:

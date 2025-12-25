@@ -101,7 +101,6 @@ ignore = [
     "PLE1205", # format string contains both automatic and manual field specs
     "T201", # print found
     "G004", # logging statement uses f-string
-    "PLW0603", # global statement (used for locale caching)
 ]
 
 [tool.ruff.lint.per-file-ignores]

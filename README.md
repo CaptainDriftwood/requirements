@@ -290,6 +290,66 @@ requirements update django ">=4.2.0a1"
 requirements update mypackage "==1.0.0+local"
 ```
 
+### Comment Preservation
+
+All modification commands preserve comments and file structure:
+
+```bash
+# Before
+# Web frameworks
+django==3.2  # LTS version
+flask==2.0
+
+# After running: requirements update django 4.2
+# Web frameworks
+django==4.2  # LTS version
+flask==2.0
+```
+
+**How it works:**
+- **Section comments** (lines starting with `#`) stay at the top of their section
+- **Inline comments** (after package name) are preserved when updating versions
+- **Blank lines** that separate logical sections are maintained
+- Packages are sorted alphabetically within each section
+
+### Locale Configuration
+
+The `--locale` option controls sorting behavior for package names. If not specified, the system locale is auto-detected.
+
+**Finding available locales on your system:**
+```bash
+# Linux/macOS
+locale -a
+```
+
+**Common locale values:**
+- `en_US.UTF-8` - US English with UTF-8 encoding
+- `en_GB.UTF-8` - British English with UTF-8 encoding
+- `C.UTF-8` - Minimal locale with UTF-8 (available on most systems)
+- `C` or `POSIX` - Basic ASCII sorting (always available)
+
+**Usage:**
+```bash
+# Use specific locale
+requirements sort --locale en_US.UTF-8
+
+# Force ASCII sorting
+requirements sort --locale C
+```
+
+If the specified locale is not available, the tool falls back to ASCII sorting with a warning.
+
+### Excluded Paths
+
+The following are automatically excluded from searches:
+
+**Directories:**
+- `.venv`, `venv`, `virtualenv` - Virtual environment directories
+- `.aws-sam` - AWS SAM build directories
+
+**Symlinks:**
+- Symlinked files are skipped to prevent infinite loops and unexpected behavior
+
 ## Development
 
 ### Setup
