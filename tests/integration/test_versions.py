@@ -220,7 +220,9 @@ class TestVersionsCommand:
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_response)
+        monkeypatch.setattr(
+            "urllib.request.urlopen", lambda *args, **kwargs: mock_response
+        )
 
         result = cli_runner.invoke(cli, ["versions", "requests", "-1"])
 
@@ -245,7 +247,9 @@ class TestVersionsCommand:
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: mock_response)
+        monkeypatch.setattr(
+            "urllib.request.urlopen", lambda *args, **kwargs: mock_response
+        )
 
         result = cli_runner.invoke(cli, ["versions", "requests", "--one-per-line"])
 

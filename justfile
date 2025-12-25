@@ -54,8 +54,8 @@ upgrade:
 type:
     @uv run --with ty ty check src tests
 
-# Run all quality checks (lint, type, test)
-check: lint type test
+# Run all quality checks (format, lint, type, test)
+check: format lint type test
 
 # Build the package
 build:
