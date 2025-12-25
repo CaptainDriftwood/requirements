@@ -142,6 +142,37 @@ def requirements_with_errors() -> Generator[str, None, None]:
 
 
 @pytest.fixture
+def create_requirements_file():
+    """Factory fixture to create requirements.txt files with given content.
+
+    Args:
+        base_path: Base directory path (typically tmp_path)
+        subdir: Subdirectory name to create
+        content: Content to write to requirements.txt
+        read_only: If True, make the file read-only (default: False)
+
+    Returns:
+        Path to the created requirements.txt file
+    """
+
+    def _create(
+        base_path: pathlib.Path,
+        subdir: str,
+        content: str,
+        read_only: bool = False,
+    ) -> pathlib.Path:
+        project_dir = base_path / subdir
+        project_dir.mkdir(exist_ok=True)
+        file_path = project_dir / "requirements.txt"
+        file_path.write_text(content)
+        if read_only:
+            file_path.chmod(0o444)
+        return file_path
+
+    return _create
+
+
+@pytest.fixture
 def multilevel_nested_directories() -> Generator[str, None, None]:
     """Multiple levels of nested directories with requirements files"""
     with tempfile.TemporaryDirectory() as td:

@@ -1,4 +1,5 @@
 import pathlib
+import subprocess
 import tempfile
 
 from click.testing import CliRunner
@@ -31,7 +32,7 @@ class TestCLIIntegration:
         """Test update command help"""
         result = cli_runner.invoke(cli, ["update", "--help"])
         assert result.exit_code == 0
-        assert "Replace a package name" in result.output
+        assert "Update a package version" in result.output
 
     def test_add_command_help(self, cli_runner: CliRunner) -> None:
         """Test add command help"""
@@ -61,7 +62,7 @@ class TestCLIIntegration:
         """Test cat command help"""
         result = cli_runner.invoke(cli, ["cat", "--help"])
         assert result.exit_code == 0
-        assert "Cat the contents" in result.output
+        assert "Display the contents" in result.output
 
 
 class TestComplexScenarios:
@@ -153,7 +154,7 @@ class TestErrorHandling:
         """Test handling invalid file paths"""
         result = cli_runner.invoke(find_package, ["pytest", "/nonexistent/path"])
         assert result.exit_code == 0
-        assert "not a valid path" in result.output
+        assert "does not exist" in result.output
 
     def test_empty_requirements_file(self, cli_runner: CliRunner) -> None:
         """Test handling empty requirements files"""
@@ -238,3 +239,73 @@ class TestVirtualEnvironmentExclusion:
             result = cli_runner.invoke(find_package, ["should_be_excluded", td])
             assert result.exit_code == 0
             assert result.output.strip() == ""
+
+
+class TestSortSummary:
+    """Test sort command summary output for multiple files."""
+
+    def test_sort_multiple_files_summary(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
+        """Test that sorting multiple files shows a summary."""
+        # Create 3 unsorted requirements files
+        for name in ["project1", "project2", "project3"]:
+            subdir = tmp_path / name
+            subdir.mkdir()
+            req_file = subdir / "requirements.txt"
+            req_file.write_text("zebra==1.0.0\napple==2.0.0\nbanana==3.0.0\n")
+
+        result = cli_runner.invoke(cli, ["sort", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "Summary:" in result.output
+        assert "3 sorted" in result.output
+        assert "3 files total" in result.output
+
+    def test_sort_mixed_files_summary(
+        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+    ) -> None:
+        """Test summary with mix of sorted and unsorted files."""
+        # Create one already sorted file
+        sorted_dir = tmp_path / "sorted"
+        sorted_dir.mkdir()
+        (sorted_dir / "requirements.txt").write_text("apple==1.0.0\nzebra==2.0.0\n")
+
+        # Create one unsorted file
+        unsorted_dir = tmp_path / "unsorted"
+        unsorted_dir.mkdir()
+        (unsorted_dir / "requirements.txt").write_text("zebra==2.0.0\napple==1.0.0\n")
+
+        result = cli_runner.invoke(cli, ["sort", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "Summary:" in result.output
+        assert "1 sorted" in result.output
+        assert "1 already sorted" in result.output
+        assert "2 files total" in result.output
+
+
+class TestCLIEntryPoint:
+    """Test that the CLI entry point is installed and functional"""
+
+    def test_cli_entry_point_help(self) -> None:
+        """Verify the CLI entry point responds to --help"""
+        result = subprocess.run(
+            ["requirements", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert "Manage requirements.txt files" in result.stdout
+
+    def test_cli_entry_point_version(self) -> None:
+        """Verify the CLI entry point responds to --version"""
+        result = subprocess.run(
+            ["requirements", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0
+        assert "requirements" in result.stdout.lower()

@@ -2,11 +2,8 @@ import pathlib
 
 import pytest
 
-from src.main import (
-    check_package_name,
-    gather_requirements_files,
-    resolve_paths,
-)
+from src.files import gather_requirements_files, resolve_paths
+from src.packages import check_package_name
 
 
 class TestGatherRequirementsFiles:
@@ -36,7 +33,7 @@ class TestResolvePathsFunction:
 
     def test_resolve_multiple_paths(self) -> None:
         """Test resolving multiple paths"""
-        result = resolve_paths(("path1 path2 path3",))
+        result = resolve_paths(("path1", "path2", "path3"))
         assert len(result) == 3
         assert result[0] == pathlib.Path("path1")
         assert result[1] == pathlib.Path("path2")
@@ -53,6 +50,22 @@ class TestResolvePathsFunction:
         result = resolve_paths(("*",))
         assert len(result) == 1
         assert result[0] == pathlib.Path.cwd()
+
+    def test_resolve_paths_with_spaces(self) -> None:
+        """Test resolving paths that contain spaces"""
+        result = resolve_paths(("/path/with spaces/project",))
+        assert len(result) == 1
+        assert result[0] == pathlib.Path("/path/with spaces/project")
+
+    def test_resolve_multiple_paths_with_spaces(self) -> None:
+        """Test resolving multiple paths where some contain spaces"""
+        result = resolve_paths(
+            ("/path/with spaces/project", "/normal/path", "/another path/here")
+        )
+        assert len(result) == 3
+        assert result[0] == pathlib.Path("/path/with spaces/project")
+        assert result[1] == pathlib.Path("/normal/path")
+        assert result[2] == pathlib.Path("/another path/here")
 
 
 @pytest.mark.parametrize(
@@ -80,10 +93,22 @@ class TestResolvePathsFunction:
         # Edge cases with underscore and dash differences
         ("example-package", "example_package>=1.2.3", True),
         ("example_package", "example-package==1.2.3", True),
-        # Testing for package names with version specifiers
-        ("example", "example[extra]==1.2.3", False),
-        ("example_package", "example-package[extra]>=1.2.3", False),
-        ("example-package", "example_package[extra]==1.2.3", False),
+        # Extras and version specifiers
+        # Extras should match the base package (example[extra] IS the package example)
+        ("example", "example[extra]", True),
+        ("example", "example[extra]==1.2.3", True),
+        ("example_package", "example-package[extra]>=1.2.3", True),
+        ("example-package", "example_package[extra]==1.2.3", True),
+        # Case sensitivity tests (should be case-insensitive like pip)
+        ("Django", "django", True),
+        ("django", "Django", True),
+        ("REQUESTS", "requests", True),
+        ("requests", "REQUESTS", True),
+        ("Flask-RESTful", "flask-restful", True),
+        ("flask-restful", "Flask-RESTful", True),
+        ("Django", "django==3.2.0", True),
+        ("django", "Django>=3.2.0", True),
+        ("REQUESTS", "requests==2.26.0", True),
     ],
 )
 def test_check_package_name(package_name: str, line: str, expected: bool) -> None:

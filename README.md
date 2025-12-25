@@ -1,6 +1,37 @@
 # Requirements CLI
 
-A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects. It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
+<img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
+
+[![CI](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)](https://github.com/CaptainDriftwood/requirements)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
+[![Nox](https://img.shields.io/badge/testing-nox-blue.svg)](https://nox.thea.codes/)
+[![Built with Click](https://img.shields.io/badge/built%20with-Click-blue.svg)](https://click.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
+A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.
+It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
+
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Basic Commands](#basic-commands)
+  - [Advanced Usage](#advanced-usage)
+  - [Command Options](#command-options)
+  - [Examples](#examples)
+  - [Version Specifier Examples](#version-specifier-examples)
+  - [Inline Comment Preservation](#inline-comment-preservation)
+  - [Excluded Paths](#excluded-paths)
+- [Development](#development)
+- [References](#references)
+- [License](#license)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -10,10 +41,13 @@ A command line tool designed to manage `requirements.txt` files in Python projec
 - **Remove**: Remove a package from `requirements.txt` files
 - **Sort**: Sort packages alphabetically in `requirements.txt` files
 - **Cat**: View the contents of `requirements.txt` files
+- **Versions**: Query available versions from PyPI or private indexes
+- **Smart exclusions**: Automatically skips `.venv`, `venv`, `virtualenv`, and `.aws-sam` directories
+- **URL support**: Handles VCS URLs (`git+https://...`) and PEP 440 URL requirements
 
 ## Installation
 
-This project requires Python 3.9 or higher.
+This project requires Python 3.11 or higher.
 
 ### Install from GitHub (Recommended)
 
@@ -150,6 +184,38 @@ requirements sort /path/to/project
 ```
 Sort requirements files in a specific path.
 
+#### Query package versions
+```bash
+requirements versions requests
+```
+Show the 10 most recent versions of a package from PyPI.
+
+```bash
+requirements versions django --all
+```
+Show all available versions.
+
+```bash
+requirements versions requests --limit 20
+```
+Show a specific number of versions.
+
+```bash
+requirements versions mypackage --index-url https://nexus.example.com/repository/pypi/simple
+```
+Query versions from a private index (Nexus, Artifactory, etc.).
+
+```bash
+requirements versions requests -1
+```
+Print each version on its own line (useful for piping to other commands).
+
+```bash
+requirements versions requests -1 | head -5
+requirements versions django --all -1 | grep "^4\."
+```
+Pipe output to other commands for filtering.
+
 ### Advanced Usage
 
 #### Working with multiple paths
@@ -174,17 +240,24 @@ requirements update requests "2.28.0" --preview
 
 ### Command Options
 
-Available options by command:
+**Global options (apply to all commands):**
+- `--version`: Show the version and exit
+- `--help`: Show help message
 
 **All commands:**
 - `paths` (positional): Specify custom paths to search (default: current directory)
-- `--help`: Show command-specific help
 
 **add, remove, update, sort:**
 - `--preview`: Show what changes would be made without applying them
 
 **find:**
 - `--verbose`: Show the actual package line from the requirements file
+
+**versions:**
+- `--all`: Show all available versions (default: 10 most recent)
+- `--limit N`: Number of versions to show (default: 10)
+- `-1` / `--one-per-line`: Print each version on its own line
+- `--index-url URL`: Custom PyPI index URL (e.g., private Nexus repository)
 
 ### Examples
 
@@ -216,6 +289,66 @@ requirements remove unused-package
 requirements sort
 ```
 
+### Version Specifier Examples
+
+The CLI supports all PEP 440 version specifiers:
+
+```bash
+# Exact version (== is added automatically if no operator)
+requirements update django 4.2.0        # becomes django==4.2.0
+
+# Minimum version
+requirements update django ">=4.2.0"
+
+# Compatible release (allows patch updates)
+requirements update django "~=4.2.0"    # allows 4.2.x but not 4.3.0
+
+# Maximum version
+requirements update django "<5.0.0"
+
+# Exclusion
+requirements update django "!=4.1.0"
+
+# Range constraints
+requirements update django ">=4.0.0,<5.0.0"
+
+# Multiple constraints
+requirements update requests ">=2.25.0,!=2.26.0,<3.0.0"
+
+# Pre-release versions
+requirements update django ">=4.2.0a1"
+
+# Local version identifiers
+requirements update mypackage "==1.0.0+local"
+```
+
+### Inline Comment Preservation
+
+Inline comments on package lines are preserved when updating versions:
+
+```bash
+# Before
+django==3.2  # LTS version
+flask==2.0
+
+# After running: requirements update django 4.2
+django==4.2  # LTS version
+flask==2.0
+```
+
+Note: Standalone comment lines (lines starting with `#`) are removed during sorting operations. Only inline comments attached to package lines are preserved.
+
+### Excluded Paths
+
+The following are automatically excluded from searches:
+
+**Directories:**
+- `.venv`, `venv`, `virtualenv` - Virtual environment directories
+- `.aws-sam` - AWS SAM build directories
+
+**Symlinks:**
+- Symlinked files are skipped to prevent infinite loops and unexpected behavior
+
 ## Development
 
 ### Setup
@@ -228,31 +361,53 @@ uv sync
 ### Testing
 ```bash
 # Run tests
-uv run pytest
+just test
 
 # Run tests with coverage
-make test
+uv run pytest --cov=src
 
 # Run linting
-make lint
+just lint
 
 # Format code
-make format
+just format
 
 # Type checking
-make type
+just type
+
+# Run all checks (format, lint, type, test)
+just check
+
+# Run tests across Python versions with nox
+just nox
 ```
 
-### Available Make targets
+### Available recipes
 ```bash
-make help     # Show available targets
-make test     # Run pytest with coverage
-make lint     # Run ruff linter
-make format   # Format code with ruff
-make type     # Run mypy type checking
-make clean    # Clean build artifacts
-make upgrade  # Upgrade dependencies
+just                  # Show available recipes
+just test             # Run all tests
+just test-quick       # Run tests with minimal output
+just test-unit        # Run only unit tests (fast, ~0.04s)
+just test-integration # Run only integration tests (~0.2s)
+just lint             # Run ruff linter
+just format           # Format code with ruff
+just type             # Run ty type checking
+just check            # Run all quality checks
+just nox              # Run tests across Python 3.11, 3.12, 3.13, 3.14
+just build            # Build the package
+just install          # Install in development mode
+just clean            # Clean build artifacts
+just upgrade          # Upgrade dependencies
 ```
+
+## References
+
+- [Click](https://click.palletsprojects.com/) - CLI framework
+- [uv](https://docs.astral.sh/uv/) - Python package manager
+- [Ruff](https://docs.astral.sh/ruff/) - Linter and formatter
+- [ty](https://github.com/astral-sh/ty) - Type checker
+- [just](https://just.systems/) - Command runner
+- [Nox](https://nox.thea.codes/) - Test automation
 
 ## License
 
