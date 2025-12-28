@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
-CONFIG_DIR_NAME = ".requirements"
-CONFIG_FILE_NAME = "config.toml"
+CONFIG_DIR_NAME: Final[str] = ".requirements"
+CONFIG_FILE_NAME: Final[str] = "config.toml"
 
 
 def get_config_dir() -> Path:
@@ -88,11 +88,8 @@ def save_color_setting(enabled: bool) -> None:
     """
     ensure_config_dir()
     config_file = get_config_file()
-
-    # Load existing config or create new
     config = load_config()
 
-    # Update color setting
     if "color" not in config:
         config["color"] = {}
     config["color"]["enabled"] = enabled
