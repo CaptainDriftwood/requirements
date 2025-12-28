@@ -1,13 +1,42 @@
 """CLI for managing requirements.txt files."""
 
+from __future__ import annotations
+
 import urllib.error
+from typing import TYPE_CHECKING
 
 import click
 
+from src.console import create_console
 from src.files import check_file_writable, gather_requirements_files, resolve_paths
 from src.packages import check_package_name, validate_version_specifier
 from src.pypi import fetch_package_versions
 from src.sorting import sort_packages
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+# Key for storing console in click context
+CONSOLE_KEY = "console"
+
+
+def get_console_from_context(ctx: click.Context) -> Console:
+    """Get the console from click context, creating one if needed.
+
+    This handles the case where a subcommand is invoked directly in tests
+    without going through the main CLI group.
+
+    Args:
+        ctx: Click context object.
+
+    Returns:
+        Console instance from context or a new default console.
+    """
+    if ctx.obj is None:
+        ctx.obj = {}
+    if CONSOLE_KEY not in ctx.obj:
+        ctx.obj[CONSOLE_KEY] = create_console()
+    return ctx.obj[CONSOLE_KEY]
 
 
 @click.group(
@@ -22,11 +51,24 @@ Exit Codes:
 Excluded Directories:
     The following directories are automatically excluded from searches:
     .venv, venv, virtualenv, .aws-sam
+
+\b
+Color Output:
+    Color output is enabled by default and auto-detected based on terminal support.
+    Use --color/--no-color to override, or set the NO_COLOR environment variable.
 """
 )
+@click.option(
+    "--color/--no-color",
+    default=None,
+    help="Enable or disable colored output. Auto-detected by default.",
+)
 @click.version_option(package_name="requirements")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context, color: bool | None) -> None:
     """Main CLI entry point."""
+    ctx.ensure_object(dict)
+    ctx.obj[CONSOLE_KEY] = create_console(color)
 
 
 @cli.command(name="update")
@@ -34,7 +76,9 @@ def cli() -> None:
 @click.argument("version_specifier")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.pass_context
 def update_package(
+    ctx: click.Context,
     package_name: str,
     version_specifier: str,
     paths: tuple[str],
@@ -82,10 +126,11 @@ def update_package(
     - Files are automatically sorted after updates
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     """
+    console = get_console_from_context(ctx)
     version_specifier = validate_version_specifier(version_specifier)
 
     if preview:
-        click.echo("Previewing changes")
+        console.print("Previewing changes")
 
     resolved_paths = resolve_paths(paths)
 
@@ -106,13 +151,13 @@ def update_package(
 
         if modified:
             if preview:
-                click.echo(click.style(requirements_file, fg="cyan", bold=True))
-                click.echo("\n".join(contents).strip() + "\n")
+                console.print(str(requirements_file), style="path")
+                console.print("\n".join(contents).strip() + "\n")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
                 )
-                click.echo(f"Updated {requirements_file}")
+                console.print(f"Updated {requirements_file}")
 
 
 @cli.command(name="find")
@@ -123,7 +168,10 @@ def update_package(
     is_flag=True,
     help="Print the package contained in the requirements.txt file",
 )
-def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
+@click.pass_context
+def find_package(
+    ctx: click.Context, package_name: str, paths: tuple[str], verbose: bool
+) -> None:
     """Find a package in requirements.txt files.
 
     Searches for the specified package across requirements.txt files and reports
@@ -159,21 +207,25 @@ def find_package(package_name: str, paths: tuple[str], verbose: bool) -> None:
     - Ignores commented lines (lines starting with #)
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     """
+    console = get_console_from_context(ctx)
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
         for line in requirements_file.read_text(encoding="utf-8").splitlines():
             if check_package_name(package_name, line):
-                click.echo(requirements_file)
+                console.print(str(requirements_file))
                 if verbose:
-                    click.echo(line)
+                    console.print(line)
 
 
 @cli.command(name="add")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def add_package(
+    ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
+) -> None:
     """Add a package to requirements.txt files.
 
     Adds the specified package to one or more requirements.txt files if it doesn't
@@ -210,8 +262,9 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     - Files are automatically sorted after addition
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     """
+    console = get_console_from_context(ctx)
     if preview:
-        click.echo("Previewing changes")
+        console.print("Previewing changes")
 
     resolved_paths = resolve_paths(paths)
 
@@ -221,7 +274,7 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
 
         for line in contents:
             if check_package_name(package_name, line):
-                click.echo(f"{package_name} already exists in {requirements_file}")
+                console.print(f"{package_name} already exists in {requirements_file}")
                 break
         else:
             contents.append(package_name)
@@ -230,20 +283,23 @@ def add_package(package_name: str, paths: tuple[str], preview: bool) -> None:
 
         if modified:
             if preview:
-                click.echo(click.style(requirements_file, fg="cyan", bold=True))
-                click.echo("\n".join(contents).strip() + "\n")
+                console.print(str(requirements_file), style="path")
+                console.print("\n".join(contents).strip() + "\n")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
                 )
-                click.echo(f"Updated {requirements_file}")
+                console.print(f"Updated {requirements_file}")
 
 
 @cli.command(name="remove")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def remove_package(
+    ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
+) -> None:
     """Remove a package from requirements.txt files.
 
     Removes the specified package from one or more requirements.txt files if it exists.
@@ -280,8 +336,9 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
     - Files are automatically sorted after removal
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     """
+    console = get_console_from_context(ctx)
     if preview:
-        click.echo("Previewing changes")
+        console.print("Previewing changes")
 
     resolved_paths = resolve_paths(paths)
 
@@ -294,19 +351,20 @@ def remove_package(package_name: str, paths: tuple[str], preview: bool) -> None:
 
         if len(contents) != len(updated_contents):
             if preview:
-                click.echo(click.style(requirements_file, fg="cyan", bold=True))
-                click.echo("\n".join(updated_contents).strip() + "\n")
+                console.print(str(requirements_file), style="path")
+                console.print("\n".join(updated_contents).strip() + "\n")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(updated_contents).strip() + "\n", encoding="utf-8"
                 )
-                click.echo(f"Removed {package_name} from {requirements_file}")
+                console.print(f"Removed {package_name} from {requirements_file}")
 
 
 @cli.command(name="sort")
 @click.argument("paths", nargs=-1)
 @click.option("--preview", is_flag=True, help="Preview file changes without saving")
-def sort_requirements(paths: tuple[str], preview: bool) -> None:
+@click.pass_context
+def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> None:
     """Sort requirements.txt files alphabetically.
 
     Sorts package entries in requirements.txt files using C locale (ASCII) ordering.
@@ -340,8 +398,9 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
     - Path references (./pkg, ../pkg, -e ./pkg) are placed at the end
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     """
+    console = get_console_from_context(ctx)
     if preview:
-        click.echo("Previewing changes")
+        console.print("Previewing changes")
 
     resolved_paths = resolve_paths(paths)
     files_sorted = 0
@@ -357,16 +416,16 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
                     requirements_file.write_text(
                         "\n".join(new_contents).strip() + "\n", encoding="utf-8"
                     )
-                    click.echo(f"Sorted {requirements_file}")
+                    console.print(f"Sorted {requirements_file}")
                     files_sorted += 1
                 else:
                     files_skipped += 1
             else:
-                click.echo(click.style(requirements_file, fg="cyan", bold=True))
-                click.echo("\n".join(new_contents).strip() + "\n")
+                console.print(str(requirements_file), style="path")
+                console.print("\n".join(new_contents).strip() + "\n")
                 files_sorted += 1
         else:
-            click.echo(f"{requirements_file} is already sorted")
+            console.print(f"{requirements_file} is already sorted")
             files_already_sorted += 1
 
     total_files = files_sorted + files_already_sorted + files_skipped
@@ -378,12 +437,15 @@ def sort_requirements(paths: tuple[str], preview: bool) -> None:
             summary_parts.append(f"{files_already_sorted} already sorted")
         if files_skipped:
             summary_parts.append(f"{files_skipped} skipped")
-        click.echo(f"\nSummary: {', '.join(summary_parts)} ({total_files} files total)")
+        console.print(
+            f"\nSummary: {', '.join(summary_parts)} ({total_files} files total)"
+        )
 
 
 @cli.command(name="cat")
 @click.argument("paths", nargs=-1)
-def cat_requirements(paths: tuple[str]) -> None:
+@click.pass_context
+def cat_requirements(ctx: click.Context, paths: tuple[str]) -> None:
     """Display the contents of requirements.txt files.
 
     Shows the content of one or more requirements.txt files with clear file headers.
@@ -413,12 +475,13 @@ def cat_requirements(paths: tuple[str]) -> None:
     - Excludes virtual environment directories (.venv, venv, virtualenv, .aws-sam)
     - Shows files exactly as they exist (no sorting or modification)
     """
+    console = get_console_from_context(ctx)
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        click.echo(click.style(requirements_file, fg="cyan", bold=True))
-        click.echo(requirements_file.read_text(encoding="utf-8").strip())
-        click.echo()
+        console.print(str(requirements_file), style="path")
+        console.print(requirements_file.read_text(encoding="utf-8").strip())
+        console.print()
 
 
 @cli.command(name="versions")
@@ -447,7 +510,9 @@ def cat_requirements(paths: tuple[str]) -> None:
     help="Custom PyPI index URL (e.g., private Nexus repository)",
     metavar="URL",
 )
+@click.pass_context
 def show_versions(
+    ctx: click.Context,
     package_name: str,
     show_all: bool,
     limit: int,
@@ -483,6 +548,7 @@ def show_versions(
     - Works with PyPI, Nexus, Artifactory, DevPI, and any PEP 503 compliant index
     - Uses the Simple API (PEP 503) to query package versions
     """
+    console = get_console_from_context(ctx)
     try:
         versions = fetch_package_versions(package_name, index_url)
 
@@ -492,29 +558,26 @@ def show_versions(
         latest = versions[0] if versions else None
 
         if latest:
-            click.echo(
-                f"{click.style(package_name, fg='cyan', bold=True)} "
-                f"(latest: {click.style(latest, fg='green')})"
+            console.print(
+                f"[package]{package_name}[/package] (latest: [version]{latest}[/version])"
             )
         else:
-            click.echo(click.style(package_name, fg="cyan", bold=True))
+            console.print(f"[package]{package_name}[/package]")
 
         total_versions = len(versions)
         display_versions = versions if show_all else versions[:limit]
 
         if one_per_line:
             for version in display_versions:
-                click.echo(version)
+                console.print(version)
         else:
-            click.echo(f"Available versions: {', '.join(display_versions)}")
+            console.print(f"Available versions: {', '.join(display_versions)}")
 
             if not show_all and total_versions > limit:
-                click.echo(
-                    click.style(
-                        f"(showing {limit} of {total_versions} versions, "
-                        "use --all for complete list)",
-                        fg="yellow",
-                    )
+                console.print(
+                    f"(showing {limit} of {total_versions} versions, "
+                    "use --all for complete list)",
+                    style="warning",
                 )
 
     except urllib.error.HTTPError as e:

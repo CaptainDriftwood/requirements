@@ -8,6 +8,7 @@ authors = [
 dependencies = [
     "click>=8.1.7",
     "packaging>=21.0",
+    "rich>=13.9.4",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
