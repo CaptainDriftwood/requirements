@@ -284,7 +284,45 @@ export NO_COLOR=1
 requirements cat
 ```
 
-Note: The `--color` flag takes precedence over the `NO_COLOR` environment variable.
+**Priority order:**
+1. `--color/--no-color` flags (highest priority)
+2. `NO_COLOR` environment variable
+3. User config file (`~/.requirements/config.toml`)
+4. Auto-detection (default)
+
+### Configuration File
+
+The CLI supports a configuration file stored in your home directory at `~/.requirements/config.toml`.
+
+**Initialize config file:**
+```bash
+requirements config init
+```
+
+**Set color preference:**
+```bash
+# Enable colors
+requirements config set color true
+
+# Disable colors
+requirements config set color false
+```
+
+**View current settings:**
+```bash
+requirements config show
+```
+
+**Show config file path:**
+```bash
+requirements config path
+```
+
+**Example config file (`~/.requirements/config.toml`):**
+```toml
+[color]
+enabled = true
+```
 
 ### Examples
 

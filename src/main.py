@@ -7,6 +7,13 @@ from typing import TYPE_CHECKING
 
 import click
 
+from src.config import (
+    ensure_config_dir,
+    get_config_file,
+    get_default_config_content,
+    load_config,
+    save_color_setting,
+)
 from src.console import create_console
 from src.files import check_file_writable, gather_requirements_files, resolve_paths
 from src.packages import check_package_name, validate_version_specifier
@@ -586,6 +593,98 @@ def show_versions(
         raise click.ClickException(f"HTTP error: {e}") from e
     except urllib.error.URLError as e:
         raise click.ClickException(f"Network error: {e.reason}") from e
+
+
+@cli.group(name="config")
+def config_group() -> None:
+    """Manage CLI configuration settings.
+
+    Configuration is stored in ~/.requirements/config.toml.
+
+    \b
+    Examples:
+    Show current configuration:
+        requirements config show
+
+    Enable colored output:
+        requirements config set color true
+
+    Disable colored output:
+        requirements config set color false
+
+    Show config file path:
+        requirements config path
+    """
+
+
+@config_group.command(name="show")
+@click.pass_context
+def config_show(ctx: click.Context) -> None:
+    """Show current configuration settings."""
+    console = get_console_from_context(ctx)
+    config_file = get_config_file()
+    config = load_config()
+
+    console.print(f"[path]Config file:[/path] {config_file}")
+
+    if not config:
+        console.print("No configuration set (using defaults)")
+        return
+
+    console.print("\n[info]Current settings:[/info]")
+    for section, values in config.items():
+        if isinstance(values, dict):
+            for key, value in values.items():
+                console.print(f"  {section}.{key} = {value}")
+        else:
+            console.print(f"  {section} = {values}")
+
+
+@config_group.command(name="path")
+@click.pass_context
+def config_path(ctx: click.Context) -> None:
+    """Show the configuration file path."""
+    console = get_console_from_context(ctx)
+    console.print(str(get_config_file()))
+
+
+@config_group.command(name="set")
+@click.argument("setting", type=click.Choice(["color"]))
+@click.argument("value", type=click.Choice(["true", "false"]))
+@click.pass_context
+def config_set(ctx: click.Context, setting: str, value: str) -> None:
+    """Set a configuration value.
+
+    \b
+    Available settings:
+        color: Enable/disable colored output (true/false)
+    """
+    console = get_console_from_context(ctx)
+
+    if setting == "color":
+        enabled = value == "true"
+        save_color_setting(enabled)
+        status = "enabled" if enabled else "disabled"
+        console.print(f"Color output {status}")
+
+
+@config_group.command(name="init")
+@click.pass_context
+def config_init(ctx: click.Context) -> None:
+    """Initialize configuration file with defaults.
+
+    Creates ~/.requirements/config.toml with default settings if it doesn't exist.
+    """
+    console = get_console_from_context(ctx)
+    config_file = get_config_file()
+
+    if config_file.exists():
+        console.print(f"Config file already exists: {config_file}")
+        return
+
+    ensure_config_dir()
+    config_file.write_text(get_default_config_content())
+    console.print(f"Created config file: {config_file}")
 
 
 if __name__ == "__main__":

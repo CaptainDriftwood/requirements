@@ -2,6 +2,7 @@
 
 This module provides centralized console output handling with support for:
 - User-configurable colors via --color/--no-color flags
+- User config file settings (~/.requirements/config.toml)
 - Automatic NO_COLOR environment variable detection
 - Consistent styling across the CLI
 """
@@ -9,9 +10,12 @@ This module provides centralized console output handling with support for:
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 
 from rich.console import Console
 from rich.theme import Theme
+
+from src.config import get_color_setting
 
 # Custom theme for consistent styling
 THEME = Theme(
@@ -33,7 +37,8 @@ def _should_use_color(color_override: bool | None = None) -> bool:
     Priority order:
     1. Explicit override from --color/--no-color flags
     2. NO_COLOR environment variable (if set, disables color)
-    3. Default to auto-detection by rich
+    3. User config file (~/.requirements/config.toml)
+    4. Default to auto-detection by rich
 
     Args:
         color_override: Explicit color setting from CLI flags.
@@ -47,7 +52,16 @@ def _should_use_color(color_override: bool | None = None) -> bool:
 
     # NO_COLOR convention: https://no-color.org/
     # If NO_COLOR exists (regardless of value), disable color
-    return "NO_COLOR" not in os.environ
+    if "NO_COLOR" in os.environ:
+        return False
+
+    # Check user config file
+    config_color = get_color_setting()
+    if config_color is not None:
+        return config_color
+
+    # Default to auto-detection (enabled)
+    return True
 
 
 def create_console(color: bool | None = None) -> Console:
@@ -57,7 +71,7 @@ def create_console(color: bool | None = None) -> Console:
         color: Color mode setting.
             True = force color on
             False = force color off
-            None = auto-detect (respects NO_COLOR env var)
+            None = auto-detect (respects NO_COLOR env var and config file)
 
     Returns:
         Configured Console instance.
@@ -78,18 +92,14 @@ def create_console(color: bool | None = None) -> Console:
     )
 
 
-# Global console instance for use when color setting is unknown
-# Commands should use the console from click context when available
-_default_console: Console | None = None
-
-
+@lru_cache(maxsize=1)
 def get_console() -> Console:
     """Get the default console instance.
+
+    Uses lru_cache to create a singleton-like pattern without global state.
+    The console is created once on first call and cached for subsequent calls.
 
     Returns:
         Default Console instance with auto-detected color settings.
     """
-    global _default_console  # noqa: PLW0603
-    if _default_console is None:
-        _default_console = create_console()
-    return _default_console
+    return create_console()
