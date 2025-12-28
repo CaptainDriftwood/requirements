@@ -87,6 +87,8 @@ def ensure_config_dir() -> Path:
 def save_color_setting(enabled: bool) -> None:
     """Save the color setting to user configuration.
 
+    Preserves any other existing configuration settings when writing.
+
     Args:
         enabled: Whether color output should be enabled.
     """
@@ -101,12 +103,50 @@ def save_color_setting(enabled: bool) -> None:
         config["color"] = {}
     config["color"]["enabled"] = enabled
 
-    # Write config file in TOML format
+    # Write config file in TOML format, preserving all settings
+    _write_config(config_file, config)
+
+
+def _write_config(config_file: Path, config: dict[str, Any]) -> None:
+    """Write configuration to TOML file.
+
+    Args:
+        config_file: Path to the configuration file.
+        config: Configuration dictionary to write.
+    """
     with config_file.open("w") as f:
         f.write("# Requirements CLI Configuration\n")
         f.write("# This file is auto-generated. You can edit it manually.\n\n")
-        f.write("[color]\n")
-        f.write(f"enabled = {str(enabled).lower()}\n")
+
+        for section, values in config.items():
+            if isinstance(values, dict):
+                f.write(f"[{section}]\n")
+                for key, value in values.items():
+                    f.write(f"{key} = {_format_toml_value(value)}\n")
+                f.write("\n")
+            else:
+                f.write(f"{section} = {_format_toml_value(values)}\n")
+
+
+def _format_toml_value(value: Any) -> str:
+    """Format a value for TOML output.
+
+    Args:
+        value: Value to format.
+
+    Returns:
+        TOML-formatted string representation.
+    """
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, str):
+        return f'"{value}"'
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, list):
+        items = ", ".join(_format_toml_value(item) for item in value)
+        return f"[{items}]"
+    return str(value)
 
 
 def get_default_config_content() -> str:
