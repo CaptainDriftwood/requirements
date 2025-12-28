@@ -127,16 +127,18 @@ def _format_toml_value(value: Any) -> str:
     Returns:
         TOML-formatted string representation.
     """
-    if isinstance(value, bool):
-        return str(value).lower()
-    if isinstance(value, str):
-        return f'"{value}"'
-    if isinstance(value, int | float):
-        return str(value)
-    if isinstance(value, list):
-        items = ", ".join(_format_toml_value(item) for item in value)
-        return f"[{items}]"
-    return str(value)
+    match value:
+        case bool():
+            return str(value).lower()
+        case str():
+            return f'"{value}"'
+        case int() | float():
+            return str(value)
+        case list():
+            items = ", ".join(_format_toml_value(item) for item in value)
+            return f"[{items}]"
+        case _:
+            return str(value)
 
 
 def get_default_config_content() -> str:

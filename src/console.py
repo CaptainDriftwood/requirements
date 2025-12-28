@@ -78,7 +78,7 @@ def create_console(color: bool | None = None) -> Console:
 
     if color is True:
         force_terminal = True
-    elif color is False or not _should_use_color(color):
+    elif color is False or not _should_use_color():
         no_color = True
 
     return Console(
