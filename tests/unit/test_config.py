@@ -44,24 +44,18 @@ def test_get_color_setting_returns_none_when_not_configured():
 
 def test_save_and_load_color_setting(tmp_path, monkeypatch):
     """Test saving and loading color setting."""
-    # Patch home directory to use temp directory
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
-    # Save color enabled
     save_color_setting(True)
 
-    # Verify file was created
     config_file = tmp_path / ".requirements" / "config.toml"
     assert config_file.exists()
 
-    # Load and verify
     config = load_config()
     assert config.get("color", {}).get("enabled") is True
 
-    # Get color setting
     assert get_color_setting() is True
 
-    # Save color disabled
     save_color_setting(False)
     assert get_color_setting() is False
 

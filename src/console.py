@@ -20,10 +20,7 @@ from src.config import get_color_setting
 # Custom theme for consistent styling
 THEME = Theme(
     {
-        "info": "cyan",
-        "success": "green",
         "warning": "yellow",
-        "error": "red bold",
         "path": "cyan bold",
         "package": "green bold",
         "version": "green",

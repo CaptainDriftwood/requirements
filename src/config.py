@@ -5,15 +5,9 @@ This module provides user-configurable settings stored in ~/.requirements/config
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import Any
-
-# Try to import tomllib (Python 3.11+), fall back to tomli for older versions
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[import-not-found]
-
 
 CONFIG_DIR_NAME = ".requirements"
 CONFIG_FILE_NAME = "config.toml"
@@ -103,7 +97,6 @@ def save_color_setting(enabled: bool) -> None:
         config["color"] = {}
     config["color"]["enabled"] = enabled
 
-    # Write config file in TOML format, preserving all settings
     _write_config(config_file, config)
 
 
