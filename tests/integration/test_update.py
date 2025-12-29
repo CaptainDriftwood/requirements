@@ -24,8 +24,8 @@ class TestPreviewChanges:
         assert result.exit_code == 0
         assert "Previewing changes" in result.output
         assert f"{single_requirements_file}/requirements.txt" in result.output
-        assert "- pytest" in result.output
-        assert "+ pytest~=6.0.0" in result.output
+        assert "-pytest" in result.output
+        assert "+pytest~=6.0.0" in result.output
 
         # assert that file contents are unchanged
         contents = (
@@ -266,8 +266,8 @@ def test_update_package_with_inline_comment_preview_mode(
     assert "Previewing changes" in result.output
 
     # Check that preview shows diff-style output
-    assert "- requests==2.26.0  # HTTP library for APIs" in result.output
-    assert "+ requests==2.28.0  # HTTP library for APIs" in result.output
+    assert "-requests==2.26.0  # HTTP library for APIs" in result.output
+    assert "+requests==2.28.0  # HTTP library for APIs" in result.output
 
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()

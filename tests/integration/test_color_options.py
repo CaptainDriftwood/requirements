@@ -66,7 +66,9 @@ def test_color_flag_overrides_no_color_env(cli_runner, tmp_path, monkeypatch):
         ("versions", ["requests"], False),
     ],
 )
-def test_command_works_with_color_flag(cli_runner, tmp_path, command_name, command_args, needs_path):
+def test_command_works_with_color_flag(
+    cli_runner, tmp_path, command_name, command_args, needs_path
+):
     """Test that commands work with --color flag."""
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\ndjango==3.2.0\n")
@@ -90,7 +92,9 @@ def test_command_works_with_color_flag(cli_runner, tmp_path, command_name, comma
         ("versions", ["requests"], False),
     ],
 )
-def test_command_works_with_no_color_flag(cli_runner, tmp_path, command_name, command_args, needs_path):
+def test_command_works_with_no_color_flag(
+    cli_runner, tmp_path, command_name, command_args, needs_path
+):
     """Test that commands work with --no-color flag."""
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\ndjango==3.2.0\n")

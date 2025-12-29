@@ -124,7 +124,7 @@ def test_add_package_preserves_inline_comments_preview_mode(
     assert "Previewing changes" in result.output
 
     # Check that preview shows diff-style output with added package
-    assert "+ requests" in result.output
+    assert "+requests" in result.output
 
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()

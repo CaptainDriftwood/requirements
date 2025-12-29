@@ -50,7 +50,7 @@ class TestRemovePackage:
         assert result.exit_code == 0
         assert "Previewing changes" in result.output
         # After preview, pytest should be shown as removed in diff-style
-        assert "- pytest" in result.output
+        assert "-pytest" in result.output
 
         # File should remain unchanged in preview mode
         contents = (
@@ -136,7 +136,7 @@ def test_remove_package_preserves_inline_comments_preview_mode(
     assert "Previewing changes" in result.output
 
     # Check that preview shows diff-style output with the removed line
-    assert "- requests==2.26.0  # HTTP library for APIs" in result.output
+    assert "-requests==2.26.0  # HTTP library for APIs" in result.output
 
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()

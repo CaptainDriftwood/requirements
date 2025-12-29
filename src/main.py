@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import urllib.error
 from typing import TYPE_CHECKING, Final
 
@@ -46,6 +47,35 @@ def get_console_from_context(ctx: click.Context) -> Console:
     return ctx.obj[CONSOLE_KEY]
 
 
+def print_unified_diff(
+    console: Console,
+    old_lines: list[str],
+    new_lines: list[str],
+) -> None:
+    """Print unified diff output showing all lines with changes marked.
+
+    Displays the full file content with changed lines prefixed by +/- markers
+    and unchanged lines prefixed with a space for alignment.
+
+    Args:
+        console: Rich console instance for output.
+        old_lines: Original file lines.
+        new_lines: Modified file lines.
+    """
+    diff = difflib.unified_diff(
+        old_lines, new_lines, lineterm="", n=max(len(old_lines), len(new_lines))
+    )
+    for line in diff:
+        if line.startswith(("---", "+++", "@@")):
+            continue
+        if line.startswith("-"):
+            console.print(f"[diff.removed]{line}[/diff.removed]")
+        elif line.startswith("+"):
+            console.print(f"[diff.added]{line}[/diff.added]")
+        else:
+            console.print(line)
+
+
 @click.group(
     help="""Manage requirements.txt files such as adding, removing, and updating individual packages in bulk.
 
@@ -82,7 +112,9 @@ def cli(ctx: click.Context, color: bool | None) -> None:
 @click.argument("package_name")
 @click.argument("version_specifier")
 @click.argument("paths", nargs=-1)
-@click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.option(
+    "--preview", "--dry-run", is_flag=True, help="Preview file changes without saving"
+)
 @click.pass_context
 def update_package(
     ctx: click.Context,
@@ -142,10 +174,9 @@ def update_package(
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text(encoding="utf-8").splitlines()
+        original_contents = requirements_file.read_text(encoding="utf-8").splitlines()
+        contents = original_contents.copy()
         modified = False
-        changed_line_old = None
-        changed_line_new = None
 
         for index, line in enumerate(contents):
             if check_package_name(package_name, line):
@@ -154,18 +185,14 @@ def update_package(
                     comment_index = line.find("#")
                     inline_comment = "  " + line[comment_index:]
 
-                changed_line_old = line
-                changed_line_new = f"{package_name}{version_specifier}{inline_comment}"
-                contents[index] = changed_line_new
+                contents[index] = f"{package_name}{version_specifier}{inline_comment}"
                 modified = True
                 contents = sort_packages(contents)
 
         if modified:
             if preview:
                 console.print(str(requirements_file), style="path")
-                if changed_line_old and changed_line_new:
-                    console.print(f"[diff.removed]- {changed_line_old}[/diff.removed]")
-                    console.print(f"[diff.added]+ {changed_line_new}[/diff.added]")
+                print_unified_diff(console, original_contents, contents)
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
@@ -234,7 +261,9 @@ def find_package(
 @cli.command(name="add")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
-@click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.option(
+    "--preview", "--dry-run", is_flag=True, help="Preview file changes without saving"
+)
 @click.pass_context
 def add_package(
     ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
@@ -282,7 +311,8 @@ def add_package(
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text(encoding="utf-8").splitlines()
+        original_contents = requirements_file.read_text(encoding="utf-8").splitlines()
+        contents = original_contents.copy()
         modified = False
 
         for line in contents:
@@ -297,7 +327,7 @@ def add_package(
         if modified:
             if preview:
                 console.print(str(requirements_file), style="path")
-                console.print(f"[diff.added]+ {package_name}[/diff.added]")
+                print_unified_diff(console, original_contents, contents)
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
@@ -308,7 +338,9 @@ def add_package(
 @cli.command(name="remove")
 @click.argument("package_name")
 @click.argument("paths", nargs=-1)
-@click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.option(
+    "--preview", "--dry-run", is_flag=True, help="Preview file changes without saving"
+)
 @click.pass_context
 def remove_package(
     ctx: click.Context, package_name: str, paths: tuple[str], preview: bool
@@ -356,20 +388,18 @@ def remove_package(
     resolved_paths = resolve_paths(paths)
 
     for requirements_file in gather_requirements_files(resolved_paths):
-        contents = requirements_file.read_text(encoding="utf-8").splitlines()
-        removed_lines = [
-            line for line in contents if check_package_name(package_name, line)
-        ]
+        original_contents = requirements_file.read_text(encoding="utf-8").splitlines()
         updated_contents = [
-            line for line in contents if not check_package_name(package_name, line)
+            line
+            for line in original_contents
+            if not check_package_name(package_name, line)
         ]
         updated_contents = sort_packages(updated_contents)
 
-        if len(contents) != len(updated_contents):
+        if len(original_contents) != len(updated_contents):
             if preview:
                 console.print(str(requirements_file), style="path")
-                for removed_line in removed_lines:
-                    console.print(f"[diff.removed]- {removed_line}[/diff.removed]")
+                print_unified_diff(console, original_contents, updated_contents)
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(updated_contents).strip() + "\n", encoding="utf-8"
@@ -379,7 +409,9 @@ def remove_package(
 
 @cli.command(name="sort")
 @click.argument("paths", nargs=-1)
-@click.option("--preview", is_flag=True, help="Preview file changes without saving")
+@click.option(
+    "--preview", "--dry-run", is_flag=True, help="Preview file changes without saving"
+)
 @click.pass_context
 def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> None:
     """Sort requirements.txt files alphabetically.
@@ -439,21 +471,7 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
                     files_skipped += 1
             else:
                 console.print(str(requirements_file), style="path")
-                for old_line in contents:
-                    is_content_line = (
-                        old_line.strip() and not old_line.strip().startswith("#")
-                    )
-                    if is_content_line and old_line not in new_contents:
-                        console.print(
-                            f"[diff.removed]- {old_line}[/diff.removed]"
-                        )
-                for new_line in new_contents:
-                    is_content_line = (
-                        new_line.strip() and not new_line.strip().startswith("#")
-                    )
-                    if is_content_line and new_line not in contents:
-                        console.print(f"[diff.added]+ {new_line}[/diff.added]")
-                console.print("[diff.changed]~ File will be reordered[/diff.changed]")
+                print_unified_diff(console, contents, new_contents)
                 files_sorted += 1
         else:
             console.print(f"{requirements_file} is already sorted")
