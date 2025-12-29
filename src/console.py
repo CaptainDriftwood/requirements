@@ -24,6 +24,9 @@ THEME = Theme(
         "path": "cyan bold",
         "package": "green bold",
         "version": "green",
+        "diff.added": "green",
+        "diff.removed": "red",
+        "diff.changed": "yellow",
     }
 )
 
@@ -52,7 +55,6 @@ def _should_use_color(color_override: bool | None = None) -> bool:
     if "NO_COLOR" in os.environ:
         return False
 
-    # Check user config file
     config_color = get_color_setting()
     if config_color is not None:
         return config_color

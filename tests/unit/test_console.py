@@ -77,6 +77,9 @@ def test_create_console_has_custom_theme():
     assert "package" in THEME.styles
     assert "version" in THEME.styles
     assert "warning" in THEME.styles
+    assert "diff.added" in THEME.styles
+    assert "diff.removed" in THEME.styles
+    assert "diff.changed" in THEME.styles
 
 
 def test_get_console_returns_console():

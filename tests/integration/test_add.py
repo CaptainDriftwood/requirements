@@ -123,10 +123,8 @@ def test_add_package_preserves_inline_comments_preview_mode(
     assert result.exit_code == 0
     assert "Previewing changes" in result.output
 
-    # Check that preview shows the correct output with preserved comments
-    assert "django==3.2.0  # Web framework" in result.output
-    assert "pytest==6.2.5  # Testing framework" in result.output
-    assert "requests" in result.output
+    # Check that preview shows diff-style output with added package
+    assert "+ requests" in result.output
 
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()

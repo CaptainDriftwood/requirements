@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import urllib.error
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import click
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 # Key for storing console in click context
-CONSOLE_KEY = "console"
+CONSOLE_KEY: Final[str] = "console"
 
 
 def get_console_from_context(ctx: click.Context) -> Console:
@@ -144,6 +144,8 @@ def update_package(
     for requirements_file in gather_requirements_files(resolved_paths):
         contents = requirements_file.read_text(encoding="utf-8").splitlines()
         modified = False
+        changed_line_old = None
+        changed_line_new = None
 
         for index, line in enumerate(contents):
             if check_package_name(package_name, line):
@@ -152,14 +154,18 @@ def update_package(
                     comment_index = line.find("#")
                     inline_comment = "  " + line[comment_index:]
 
-                contents[index] = f"{package_name}{version_specifier}{inline_comment}"
+                changed_line_old = line
+                changed_line_new = f"{package_name}{version_specifier}{inline_comment}"
+                contents[index] = changed_line_new
                 modified = True
                 contents = sort_packages(contents)
 
         if modified:
             if preview:
                 console.print(str(requirements_file), style="path")
-                console.print("\n".join(contents).strip() + "\n")
+                if changed_line_old and changed_line_new:
+                    console.print(f"[diff.removed]- {changed_line_old}[/diff.removed]")
+                    console.print(f"[diff.changed]+ {changed_line_new}[/diff.changed]")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
@@ -291,7 +297,7 @@ def add_package(
         if modified:
             if preview:
                 console.print(str(requirements_file), style="path")
-                console.print("\n".join(contents).strip() + "\n")
+                console.print(f"[diff.added]+ {package_name}[/diff.added]")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
@@ -351,6 +357,9 @@ def remove_package(
 
     for requirements_file in gather_requirements_files(resolved_paths):
         contents = requirements_file.read_text(encoding="utf-8").splitlines()
+        removed_lines = [
+            line for line in contents if check_package_name(package_name, line)
+        ]
         updated_contents = [
             line for line in contents if not check_package_name(package_name, line)
         ]
@@ -359,7 +368,8 @@ def remove_package(
         if len(contents) != len(updated_contents):
             if preview:
                 console.print(str(requirements_file), style="path")
-                console.print("\n".join(updated_contents).strip() + "\n")
+                for removed_line in removed_lines:
+                    console.print(f"[diff.removed]- {removed_line}[/diff.removed]")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(updated_contents).strip() + "\n", encoding="utf-8"
@@ -429,7 +439,21 @@ def sort_requirements(ctx: click.Context, paths: tuple[str], preview: bool) -> N
                     files_skipped += 1
             else:
                 console.print(str(requirements_file), style="path")
-                console.print("\n".join(new_contents).strip() + "\n")
+                for old_line in contents:
+                    is_content_line = (
+                        old_line.strip() and not old_line.strip().startswith("#")
+                    )
+                    if is_content_line and old_line not in new_contents:
+                        console.print(
+                            f"[diff.removed]- {old_line}[/diff.removed]"
+                        )
+                for new_line in new_contents:
+                    is_content_line = (
+                        new_line.strip() and not new_line.strip().startswith("#")
+                    )
+                    if is_content_line and new_line not in contents:
+                        console.print(f"[diff.added]+ {new_line}[/diff.added]")
+                console.print("[diff.changed]~ File will be reordered[/diff.changed]")
                 files_sorted += 1
         else:
             console.print(f"{requirements_file} is already sorted")
