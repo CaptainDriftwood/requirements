@@ -13,7 +13,7 @@
 [![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
 [![Nox](https://img.shields.io/badge/testing-nox-blue.svg)](https://nox.thea.codes/)
 [![Built with Click](https://img.shields.io/badge/built%20with-Click-blue.svg)](https://click.palletsprojects.com/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.
 It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
@@ -243,6 +243,7 @@ requirements update requests "2.28.0" --preview
 **Global options (apply to all commands):**
 - `--version`: Show the version and exit
 - `--help`: Show help message
+- `--color / --no-color`: Enable or disable colored output (auto-detected by default)
 
 **All commands:**
 - `paths` (positional): Specify custom paths to search (default: current directory)
@@ -258,6 +259,70 @@ requirements update requests "2.28.0" --preview
 - `--limit N`: Number of versions to show (default: 10)
 - `-1` / `--one-per-line`: Print each version on its own line
 - `--index-url URL`: Custom PyPI index URL (e.g., private Nexus repository)
+
+### Color Output
+
+The CLI supports colored output using the [Rich](https://rich.readthedocs.io/) library for enhanced readability.
+
+**Auto-detection (default):**
+Colors are automatically enabled when running in a terminal that supports them.
+
+**Manual control:**
+```bash
+# Force colors on
+requirements --color cat
+
+# Force colors off
+requirements --no-color cat
+```
+
+**Environment variable:**
+The CLI respects the `NO_COLOR` environment variable ([no-color.org](https://no-color.org/)):
+```bash
+# Disable colors via environment
+export NO_COLOR=1
+requirements cat
+```
+
+**Priority order:**
+1. `--color/--no-color` flags (highest priority)
+2. `NO_COLOR` environment variable
+3. User config file (`~/.requirements/config.toml`)
+4. Auto-detection (default)
+
+### Configuration File
+
+The CLI supports a configuration file stored in your home directory at `~/.requirements/config.toml`.
+
+**Initialize config file:**
+```bash
+requirements config init
+```
+
+**Set color preference:**
+```bash
+# Enable colors
+requirements config set color true
+
+# Disable colors
+requirements config set color false
+```
+
+**View current settings:**
+```bash
+requirements config show
+```
+
+**Show config file path:**
+```bash
+requirements config path
+```
+
+**Example config file (`~/.requirements/config.toml`):**
+```toml
+[color]
+enabled = true
+```
 
 ### Examples
 
@@ -403,6 +468,7 @@ just upgrade          # Upgrade dependencies
 ## References
 
 - [Click](https://click.palletsprojects.com/) - CLI framework
+- [Rich](https://rich.readthedocs.io/) - Terminal formatting and colors
 - [uv](https://docs.astral.sh/uv/) - Python package manager
 - [Ruff](https://docs.astral.sh/ruff/) - Linter and formatter
 - [ty](https://github.com/astral-sh/ty) - Type checker
