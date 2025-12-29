@@ -13,7 +13,7 @@
 [![Type Checked: ty](https://img.shields.io/badge/type%20checked-ty-blue.svg)](https://github.com/astral-sh/ty)
 [![Nox](https://img.shields.io/badge/testing-nox-blue.svg)](https://nox.thea.codes/)
 [![Built with Click](https://img.shields.io/badge/built%20with-Click-blue.svg)](https://click.palletsprojects.com/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A command line tool designed to manage `requirements.txt` files in Python projects, particularly useful for monorepo style projects.
 It provides functionalities to add, update, remove, find, sort, and view packages in `requirements.txt` files across specified paths.
