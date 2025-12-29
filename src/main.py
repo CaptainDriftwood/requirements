@@ -165,7 +165,7 @@ def update_package(
                 console.print(str(requirements_file), style="path")
                 if changed_line_old and changed_line_new:
                     console.print(f"[diff.removed]- {changed_line_old}[/diff.removed]")
-                    console.print(f"[diff.changed]+ {changed_line_new}[/diff.changed]")
+                    console.print(f"[diff.added]+ {changed_line_new}[/diff.added]")
             elif check_file_writable(requirements_file, preview):
                 requirements_file.write_text(
                     "\n".join(contents).strip() + "\n", encoding="utf-8"
