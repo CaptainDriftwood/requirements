@@ -2,7 +2,7 @@ import pathlib
 
 from click.testing import CliRunner
 
-from src.main import add_package
+from requirements.main import add_package
 
 
 class TestAddPackage:

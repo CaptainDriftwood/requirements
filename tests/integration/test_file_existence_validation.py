@@ -2,8 +2,8 @@ import pathlib
 
 from click.testing import CliRunner
 
-from src.files import gather_requirements_files
-from src.main import (
+from requirements.files import gather_requirements_files
+from requirements.main import (
     add_package,
     cat_requirements,
     find_package,

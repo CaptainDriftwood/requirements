@@ -1,6 +1,6 @@
 """Tests for console module."""
 
-from src.console import _should_use_color, create_console
+from requirements.console import _should_use_color, create_console
 
 
 def test_should_use_color_with_true_override():
@@ -69,7 +69,7 @@ def test_create_console_soft_wrap_enabled():
 
 def test_create_console_has_custom_theme():
     """Test that console has custom theme applied."""
-    from src.console import THEME
+    from requirements.console import THEME
 
     console = create_console()
     assert console is not None

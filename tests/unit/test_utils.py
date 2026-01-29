@@ -2,8 +2,8 @@ import pathlib
 
 import pytest
 
-from src.files import gather_requirements_files, resolve_paths
-from src.packages import check_package_name
+from requirements.files import gather_requirements_files, resolve_paths
+from requirements.packages import check_package_name
 
 
 class TestGatherRequirementsFiles:

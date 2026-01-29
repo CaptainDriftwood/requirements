@@ -1,4 +1,4 @@
-from src.main import cli
+from requirements.main import cli
 
 
 def test_update_preview_output_format(cli_runner, tmp_path, create_requirements_file):

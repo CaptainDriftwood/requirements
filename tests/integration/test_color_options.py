@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.main import cli
+from requirements.main import cli
 
 
 def test_cli_color_flag_help(cli_runner):

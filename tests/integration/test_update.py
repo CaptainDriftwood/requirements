@@ -3,7 +3,7 @@ import pathlib
 import pytest
 from click.testing import CliRunner
 
-from src.main import update_package
+from requirements.main import update_package
 
 
 class TestPreviewChanges:

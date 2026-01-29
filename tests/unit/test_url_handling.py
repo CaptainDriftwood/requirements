@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.packages import (
+from requirements.packages import (
     _extract_package_from_url,
     _is_url_requirement,
     check_package_name,

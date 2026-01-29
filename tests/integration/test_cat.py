@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from src.main import cat_requirements
+from requirements.main import cat_requirements
 
 
 def test_cat_requirements(cli_runner: CliRunner, single_requirements_file: str) -> None:

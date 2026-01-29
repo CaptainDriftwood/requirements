@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.pypi import (
+from requirements.pypi import (
     SimpleAPIParser,
     _extract_version_from_filename,
     fetch_package_versions,
