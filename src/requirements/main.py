@@ -16,7 +16,11 @@ from requirements.config import (
     save_color_setting,
 )
 from requirements.console import create_console
-from requirements.files import check_file_writable, gather_requirements_files, resolve_paths
+from requirements.files import (
+    check_file_writable,
+    gather_requirements_files,
+    resolve_paths,
+)
 from requirements.packages import check_package_name, validate_version_specifier
 from requirements.pypi import fetch_package_versions
 from requirements.sorting import sort_packages
