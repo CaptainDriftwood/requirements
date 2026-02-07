@@ -673,7 +673,7 @@ def config_show(ctx: click.Context) -> None:
         console.print("No configuration set (using defaults)")
         return
 
-    console.print("\n[info]Current settings:[/info]")
+    console.print("\nCurrent settings:")
     for section, values in config.items():
         if isinstance(values, dict):
             for key, value in values.items():
