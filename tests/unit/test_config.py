@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from src.config import (
+    _format_toml_value,
     get_color_setting,
     get_config_dir,
     get_config_file,
@@ -65,3 +68,33 @@ def test_get_default_config_content():
     content = get_default_config_content()
     assert "[color]" in content
     assert "enabled" in content
+
+
+@pytest.mark.parametrize(
+    ("input_value", "expected"),
+    [
+        ('hello "world"', '"hello \\"world\\""'),
+        ("back\\slash", '"back\\\\slash"'),
+        ("new\nline", '"new\\nline"'),
+        ("tab\there", '"tab\\there"'),
+    ],
+)
+def test_format_toml_value_escapes_special_characters(input_value, expected):
+    """Test that special characters in strings are properly escaped."""
+    assert _format_toml_value(input_value) == expected
+
+
+@pytest.mark.parametrize(
+    ("input_value", "expected"),
+    [
+        (True, "true"),
+        (False, "false"),
+        (42, "42"),
+        (3.14, "3.14"),
+        ("simple", '"simple"'),
+        ([1, 2, 3], "[1, 2, 3]"),
+    ],
+)
+def test_format_toml_value_types(input_value, expected):
+    """Test TOML formatting for various types."""
+    assert _format_toml_value(input_value) == expected

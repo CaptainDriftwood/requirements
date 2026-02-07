@@ -131,7 +131,13 @@ def _format_toml_value(value: Any) -> str:
         case bool():
             return str(value).lower()
         case str():
-            return f'"{value}"'
+            escaped = (
+                value.replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\t", "\\t")
+            )
+            return f'"{escaped}"'
         case int() | float():
             return str(value)
         case list():
