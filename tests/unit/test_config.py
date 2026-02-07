@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.config import (
+from requirements.config import (
     _format_toml_value,
     get_color_setting,
     get_config_dir,

@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from src.main import find_package
+from requirements.main import find_package
 
 
 class TestFindPackage:

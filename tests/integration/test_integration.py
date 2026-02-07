@@ -4,7 +4,7 @@ import tempfile
 
 from click.testing import CliRunner
 
-from src.main import (
+from requirements.main import (
     add_package,
     cli,
     find_package,

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from src.main import cli
+from requirements.main import cli
 
 
 def test_update_all_files_read_only(

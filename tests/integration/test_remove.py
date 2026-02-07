@@ -2,7 +2,7 @@ import pathlib
 
 from click.testing import CliRunner
 
-from src.main import remove_package
+from requirements.main import remove_package
 
 
 class TestRemovePackage:

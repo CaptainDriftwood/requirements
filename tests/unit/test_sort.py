@@ -4,8 +4,8 @@ import tempfile
 import pytest
 from click.testing import CliRunner
 
-from src.main import sort_requirements
-from src.sorting import sort_packages
+from requirements.main import sort_requirements
+from requirements.sorting import sort_packages
 
 
 @pytest.fixture

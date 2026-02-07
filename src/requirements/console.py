@@ -14,7 +14,7 @@ import os
 from rich.console import Console
 from rich.theme import Theme
 
-from src.config import get_color_setting
+from requirements.config import get_color_setting
 
 # Custom theme for consistent styling
 THEME = Theme(
