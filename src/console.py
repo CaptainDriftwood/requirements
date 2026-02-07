@@ -10,7 +10,6 @@ This module provides centralized console output handling with support for:
 from __future__ import annotations
 
 import os
-from functools import lru_cache
 
 from rich.console import Console
 from rich.theme import Theme
@@ -89,16 +88,3 @@ def create_console(color: bool | None = None) -> Console:
         no_color=no_color,
         soft_wrap=True,  # Don't hard-wrap text, let terminal handle it
     )
-
-
-@lru_cache(maxsize=1)
-def get_console() -> Console:
-    """Get the default console instance.
-
-    Uses lru_cache to create a singleton-like pattern without global state.
-    The console is created once on first call and cached for subsequent calls.
-
-    Returns:
-        Default Console instance with auto-detected color settings.
-    """
-    return create_console()

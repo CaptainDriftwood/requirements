@@ -1,6 +1,6 @@
 """Tests for console module."""
 
-from src.console import _should_use_color, create_console, get_console
+from src.console import _should_use_color, create_console
 
 
 def test_should_use_color_with_true_override():
@@ -80,16 +80,3 @@ def test_create_console_has_custom_theme():
     assert "diff.added" in THEME.styles
     assert "diff.removed" in THEME.styles
     assert "diff.changed" in THEME.styles
-
-
-def test_get_console_returns_console():
-    """Test that get_console returns a console instance."""
-    console = get_console()
-    assert console is not None
-
-
-def test_get_console_returns_same_instance():
-    """Test that get_console returns the same cached instance."""
-    console1 = get_console()
-    console2 = get_console()
-    assert console1 is console2
