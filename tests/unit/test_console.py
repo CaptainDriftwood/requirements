@@ -79,4 +79,3 @@ def test_create_console_has_custom_theme():
     assert "warning" in THEME.styles
     assert "diff.added" in THEME.styles
     assert "diff.removed" in THEME.styles
-    assert "diff.changed" in THEME.styles

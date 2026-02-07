@@ -25,7 +25,6 @@ THEME = Theme(
         "version": "green",
         "diff.added": "green",
         "diff.removed": "red",
-        "diff.changed": "yellow",
     }
 )
 
