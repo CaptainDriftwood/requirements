@@ -49,9 +49,8 @@ class TestRemovePackage:
         )
         assert result.exit_code == 0
         assert "Previewing changes" in result.output
-        # After preview, pytest should be removed from the preview output
-        assert "boto3~=1.0.0" in result.output
-        assert "enhancement-models==1.0.0" in result.output
+        # After preview, pytest should be shown as removed in diff-style
+        assert "-pytest" in result.output
 
         # File should remain unchanged in preview mode
         contents = (
@@ -136,11 +135,8 @@ def test_remove_package_preserves_inline_comments_preview_mode(
     assert result.exit_code == 0
     assert "Previewing changes" in result.output
 
-    # Check that preview shows the correct output with preserved comments
-    assert "django==3.2.0  # Web framework" in result.output
-    assert "pytest==6.2.5  # Testing framework" in result.output
-    # requests should not be in the preview output
-    assert "requests==2.26.0  # HTTP library for APIs" not in result.output
+    # Check that preview shows diff-style output with the removed line
+    assert "-requests==2.26.0  # HTTP library for APIs" in result.output
 
     # Verify that the file was NOT modified (preview mode)
     actual_content = requirements_file.read_text()

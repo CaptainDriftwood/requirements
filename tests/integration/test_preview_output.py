@@ -2,7 +2,7 @@ from src.main import cli
 
 
 def test_update_preview_output_format(cli_runner, tmp_path, create_requirements_file):
-    """Test that update command uses consistent output format in preview mode."""
+    """Test that update command shows full file with unified diff-style output."""
     create_requirements_file(tmp_path, "project", "django==3.0\nrequests==2.25.1\n")
 
     result = cli_runner.invoke(
@@ -12,12 +12,16 @@ def test_update_preview_output_format(cli_runner, tmp_path, create_requirements_
     # Should show file path
     assert "requirements.txt" in result.stdout
 
-    # Should show content with trailing newline
-    assert "requests==2.30.0" in result.stdout
+    # Should show unchanged lines (with space prefix for alignment)
+    assert "django==3.0" in result.stdout
+
+    # Should show diff-style output with old and new version
+    assert "-requests==2.25.1" in result.stdout
+    assert "+requests==2.30.0" in result.stdout
 
 
 def test_add_preview_output_format(cli_runner, tmp_path, create_requirements_file):
-    """Test that add command uses consistent output format in preview mode."""
+    """Test that add command shows full file with unified diff-style output."""
     create_requirements_file(tmp_path, "project", "django==3.0\n")
 
     result = cli_runner.invoke(cli, ["add", "pytest", "--preview", str(tmp_path)])
@@ -25,12 +29,15 @@ def test_add_preview_output_format(cli_runner, tmp_path, create_requirements_fil
     # Should show file path
     assert "requirements.txt" in result.stdout
 
-    # Should show content with trailing newline
-    assert "pytest" in result.stdout
+    # Should show existing lines
+    assert "django==3.0" in result.stdout
+
+    # Should show diff-style output with added package
+    assert "+pytest" in result.stdout
 
 
 def test_remove_preview_output_format(cli_runner, tmp_path, create_requirements_file):
-    """Test that remove command uses consistent output format in preview mode."""
+    """Test that remove command shows full file with unified diff-style output."""
     create_requirements_file(tmp_path, "project", "django==3.0\nrequests==2.25.1\n")
 
     result = cli_runner.invoke(cli, ["remove", "requests", "--preview", str(tmp_path)])
@@ -38,13 +45,15 @@ def test_remove_preview_output_format(cli_runner, tmp_path, create_requirements_
     # Should show file path
     assert "requirements.txt" in result.stdout
 
-    # Should show content with trailing newline, requests removed
+    # Should show remaining lines
     assert "django==3.0" in result.stdout
-    assert "requests==2.25.1" not in result.stdout
+
+    # Should show diff-style output with removed package
+    assert "-requests==2.25.1" in result.stdout
 
 
 def test_sort_preview_output_format(cli_runner, tmp_path, create_requirements_file):
-    """Test that sort command uses consistent output format in preview mode."""
+    """Test that sort command shows full file with unified diff-style output."""
     create_requirements_file(tmp_path, "project", "requests==2.25.1\ndjango==3.0\n")
 
     result = cli_runner.invoke(cli, ["sort", "--preview", str(tmp_path)])
@@ -52,16 +61,8 @@ def test_sort_preview_output_format(cli_runner, tmp_path, create_requirements_fi
     # Should show file path
     assert "requirements.txt" in result.stdout
 
-    # Should show sorted content with trailing newline
-    lines = result.stdout.split("\n")
-    content_lines = [
-        line
-        for line in lines
-        if line.strip()
-        and not ("\x1b[" in line or "requirements.txt" in line or "Previewing" in line)
-    ]
-    assert len(content_lines) >= 2
-    # Should be sorted alphabetically
+    # Should show the sorted file content (django before requests alphabetically)
+    # The diff shows the reordering
     assert "django==3.0" in result.stdout
     assert "requests==2.25.1" in result.stdout
 
@@ -92,3 +93,24 @@ def test_all_preview_commands_consistent_format(
         assert result.exit_code == 0, (
             f"Command {cmd[0]} failed with exit code {result.exit_code}"
         )
+
+
+def test_preview_shows_full_file_context(
+    cli_runner, tmp_path, create_requirements_file
+):
+    """Test that preview mode shows all lines, not just changed lines."""
+    create_requirements_file(
+        tmp_path, "project", "click==8.0.0\ndjango==3.0\nrequests==2.25.1\n"
+    )
+
+    result = cli_runner.invoke(
+        cli, ["update", "django", "4.0.0", "--preview", str(tmp_path)]
+    )
+
+    # Should show all lines from the file
+    assert "click==8.0.0" in result.stdout
+    assert "requests==2.25.1" in result.stdout
+
+    # Should show the change
+    assert "-django==3.0" in result.stdout
+    assert "+django==4.0.0" in result.stdout
