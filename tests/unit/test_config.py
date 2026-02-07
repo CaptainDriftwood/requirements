@@ -29,20 +29,18 @@ def test_get_config_file():
     assert config_file.parent == get_config_dir()
 
 
-def test_load_config_returns_empty_when_no_file():
+def test_load_config_returns_empty_when_no_file(tmp_path, monkeypatch):
     """Test that load_config returns empty dict when no config file."""
-    # This test relies on the config file not existing in CI
-    # or a fresh environment
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     config = load_config()
-    assert isinstance(config, dict)
+    assert config == {}
 
 
-def test_get_color_setting_returns_none_when_not_configured():
+def test_get_color_setting_returns_none_when_not_configured(tmp_path, monkeypatch):
     """Test that get_color_setting returns None when not configured."""
-    # This test relies on no color setting being configured
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     result = get_color_setting()
-    # Result should be None or bool depending on config
-    assert result is None or isinstance(result, bool)
+    assert result is None
 
 
 def test_save_and_load_color_setting(tmp_path, monkeypatch):
