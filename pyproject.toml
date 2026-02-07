@@ -15,11 +15,6 @@ readme = "README.md"
 license = {text = "MIT"}
 keywords = ["requirements", "monorepo", "dependency", "cli", "python"]
 
-[project.urls]
-Homepage = "https://github.com/CaptainDriftwood/requirements"
-Repository = "https://github.com/CaptainDriftwood/requirements"
-Issues = "https://github.com/CaptainDriftwood/requirements/issues"
-
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -36,6 +31,11 @@ classifiers = [
     "Environment :: Console",
     "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/CaptainDriftwood/requirements"
+Repository = "https://github.com/CaptainDriftwood/requirements"
+Issues = "https://github.com/CaptainDriftwood/requirements/issues"
 
 [project.scripts]
 requirements = "src.main:cli"
