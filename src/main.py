@@ -74,6 +74,7 @@ def print_unified_diff(
             console.print(f"[diff.added]{line}[/diff.added]")
         else:
             console.print(line)
+    console.print()
 
 
 @click.group(
