@@ -1,6 +1,6 @@
 [project]
 name = "requirements"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cli tool to update requirements.txt files in a mono repo style project."
 authors = [
     {name = "Jason", email = "5758786+CaptainDriftwood@users.noreply.github.com"},
