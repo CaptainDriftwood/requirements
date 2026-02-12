@@ -231,8 +231,8 @@ class TestEdgeCases:
         original_glob = pathlib.Path.glob
         original_exists = pathlib.Path.exists
 
-        def mock_glob(self, pattern):
-            return original_glob(self, pattern)
+        def mock_glob(self, pattern, **kwargs):
+            return original_glob(self, pattern, **kwargs)
 
         def mock_exists(self):
             if self.name == "requirements.txt":
