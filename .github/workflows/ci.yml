@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
       - name: Format check
         run: uv run ruff format --check ./
       - name: Lint check
@@ -24,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
       - run: uv run --with ty ty check --output-format=github src tests
 
   test:
@@ -38,14 +42,15 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Run tests with coverage
-        run: uv run pytest --tb=short --cov=src --cov-report=term-missing --cov-report=xml
+        run: uv run pytest --tb=short --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=90
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   build-install:
     name: Build & Install
@@ -53,6 +58,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
       - name: Build package
         run: uv build
       - name: Create venv and install from wheel
