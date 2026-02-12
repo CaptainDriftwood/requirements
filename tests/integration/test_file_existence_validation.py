@@ -1,6 +1,7 @@
 import pathlib
 
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.files import gather_requirements_files
 from requirements.main import (
@@ -16,7 +17,7 @@ from requirements.main import (
 class TestGatherRequirementsFilesValidation:
     """Test file existence validation in gather_requirements_files function"""
 
-    def test_nonexistent_path(self, capsys):
+    def test_nonexistent_path(self, capsys, fs: FakeFilesystem):
         """Test handling of non-existent paths"""
         nonexistent_path = pathlib.Path("/this/path/does/not/exist")
         result = gather_requirements_files([nonexistent_path])
@@ -25,8 +26,10 @@ class TestGatherRequirementsFilesValidation:
         captured = capsys.readouterr()
         assert "Error: Path '/this/path/does/not/exist' does not exist" in captured.err
 
-    def test_wrong_filename(self, tmp_path, capsys):
+    def test_wrong_filename(self, capsys, fs: FakeFilesystem):
         """Test handling of files that aren't named requirements.txt"""
+        tmp_path = pathlib.Path("/fake/wrong-filename")
+        tmp_path.mkdir(parents=True)
         wrong_file = tmp_path / "dependencies.txt"
         wrong_file.write_text("requests==2.26.0\n")
 
@@ -38,8 +41,10 @@ class TestGatherRequirementsFilesValidation:
             "is not a requirements.txt file (found: dependencies.txt)" in captured.err
         )
 
-    def test_valid_requirements_file(self, tmp_path):
+    def test_valid_requirements_file(self, fs: FakeFilesystem):
         """Test handling of valid requirements.txt file"""
+        tmp_path = pathlib.Path("/fake/valid-file")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("requests==2.26.0\n")
 
@@ -47,8 +52,10 @@ class TestGatherRequirementsFilesValidation:
 
         assert result == [req_file]
 
-    def test_directory_with_no_requirements_files(self, tmp_path, capsys):
+    def test_directory_with_no_requirements_files(self, capsys, fs: FakeFilesystem):
         """Test handling of directory with no requirements.txt files"""
+        tmp_path = pathlib.Path("/fake/no-reqs")
+        tmp_path.mkdir(parents=True)
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
 
@@ -61,8 +68,10 @@ class TestGatherRequirementsFilesValidation:
             in captured.err
         )
 
-    def test_directory_with_requirements_files(self, tmp_path):
+    def test_directory_with_requirements_files(self, fs: FakeFilesystem):
         """Test handling of directory with requirements.txt files"""
+        tmp_path = pathlib.Path("/fake/with-reqs")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("requests==2.26.0\n")
 
@@ -70,8 +79,10 @@ class TestGatherRequirementsFilesValidation:
 
         assert req_file in result
 
-    def test_mixed_valid_and_invalid_paths(self, tmp_path, capsys):
+    def test_mixed_valid_and_invalid_paths(self, capsys, fs: FakeFilesystem):
         """Test handling mix of valid and invalid paths"""
+        tmp_path = pathlib.Path("/fake/mixed-paths")
+        tmp_path.mkdir(parents=True)
         # Valid file
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("requests==2.26.0\n")
@@ -90,8 +101,10 @@ class TestGatherRequirementsFilesValidation:
         assert "is not a requirements.txt file" in captured.err
         assert "does not exist" in captured.err
 
-    def test_venv_exclusion_still_works(self, tmp_path):
+    def test_venv_exclusion_still_works(self, fs: FakeFilesystem):
         """Test that virtual environment exclusion still works"""
+        tmp_path = pathlib.Path("/fake/venv-exclusion")
+        tmp_path.mkdir(parents=True)
         # Create a venv directory with requirements.txt
         venv_dir = tmp_path / "venv"
         venv_dir.mkdir()
@@ -111,28 +124,36 @@ class TestGatherRequirementsFilesValidation:
 class TestCommandFileValidation:
     """Test that all commands handle missing files gracefully"""
 
-    def test_find_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_find_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test find command with non-existent file"""
         result = cli_runner.invoke(find_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_add_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_add_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test add command with non-existent file"""
         result = cli_runner.invoke(add_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_remove_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_remove_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test remove command with non-existent file"""
         result = cli_runner.invoke(remove_package, ["django", "/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_update_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_update_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test update command with non-existent file"""
         result = cli_runner.invoke(
             update_package, ["django", "4.2.0", "/nonexistent/path"]
@@ -141,14 +162,18 @@ class TestCommandFileValidation:
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_sort_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_sort_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test sort command with non-existent file"""
         result = cli_runner.invoke(sort_requirements, ["/nonexistent/path"])
 
         assert result.exit_code == 0  # Should not crash
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
-    def test_cat_command_nonexistent_file(self, cli_runner: CliRunner) -> None:
+    def test_cat_command_nonexistent_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test cat command with non-existent file"""
         result = cli_runner.invoke(cat_requirements, ["/nonexistent/path"])
 
@@ -156,9 +181,11 @@ class TestCommandFileValidation:
         assert "Error: Path '/nonexistent/path' does not exist" in result.output
 
     def test_wrong_filename_error_messages(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test clear error messages for wrong filenames"""
+        tmp_path = pathlib.Path("/fake/cmd-wrong-filename")
+        tmp_path.mkdir(parents=True)
         wrong_file = tmp_path / "dependencies.txt"
         wrong_file.write_text("requests==2.26.0\n")
 
@@ -170,9 +197,11 @@ class TestCommandFileValidation:
         )
 
     def test_empty_directory_warning(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test warning for empty directories"""
+        tmp_path = pathlib.Path("/fake/cmd-empty-dir")
+        tmp_path.mkdir(parents=True)
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
 
@@ -188,8 +217,12 @@ class TestCommandFileValidation:
 class TestEdgeCases:
     """Test edge cases in file validation"""
 
-    def test_file_deleted_between_glob_and_access(self, tmp_path, monkeypatch):
+    def test_file_deleted_between_glob_and_access(
+        self, monkeypatch, fs: FakeFilesystem
+    ):
         """Test handling of files deleted between directory scan and file access"""
+        tmp_path = pathlib.Path("/fake/file-deleted")
+        tmp_path.mkdir(parents=True)
         # Create a requirements.txt file
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("requests==2.26.0\n")
@@ -198,8 +231,8 @@ class TestEdgeCases:
         original_glob = pathlib.Path.glob
         original_exists = pathlib.Path.exists
 
-        def mock_glob(self, pattern):
-            return original_glob(self, pattern)
+        def mock_glob(self, pattern, **kwargs):
+            return original_glob(self, pattern, **kwargs)
 
         def mock_exists(self):
             if self.name == "requirements.txt":
@@ -213,8 +246,10 @@ class TestEdgeCases:
         result = gather_requirements_files([tmp_path])
         assert result == []
 
-    def test_symlink_handling(self, tmp_path):
+    def test_symlink_handling(self, fs: FakeFilesystem):
         """Test handling of symlinks"""
+        tmp_path = pathlib.Path("/fake/symlink-test")
+        tmp_path.mkdir(parents=True)
         # Create a real requirements.txt file
         real_file = tmp_path / "real_requirements.txt"
         real_file.write_text("requests==2.26.0\n")
@@ -228,8 +263,10 @@ class TestEdgeCases:
         # Should work with symlinks
         assert result == [symlink_file]
 
-    def test_broken_symlink_handling(self, tmp_path, capsys):
+    def test_broken_symlink_handling(self, capsys, fs: FakeFilesystem):
         """Test handling of broken symlinks"""
+        tmp_path = pathlib.Path("/fake/broken-symlink")
+        tmp_path.mkdir(parents=True)
         # Create a symlink to a non-existent file
         broken_symlink = tmp_path / "requirements.txt"
         broken_symlink.symlink_to(tmp_path / "nonexistent.txt")

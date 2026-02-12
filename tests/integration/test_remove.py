@@ -1,6 +1,7 @@
 import pathlib
 
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import remove_package
 
@@ -78,12 +79,12 @@ class TestRemovePackage:
 
 
 def test_remove_package_preserves_inline_comments(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test that removing a package preserves inline comments on remaining packages"""
     # Create a requirements.txt file with inline comments
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/remove-comments")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Write initial content with inline comments
@@ -110,12 +111,12 @@ def test_remove_package_preserves_inline_comments(
 
 
 def test_remove_package_preserves_inline_comments_preview_mode(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test that removing a package preserves inline comments in preview mode"""
     # Create a requirements.txt file with inline comments
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/remove-comments-preview")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Write initial content with inline comments
@@ -144,12 +145,12 @@ def test_remove_package_preserves_inline_comments_preview_mode(
 
 
 def test_remove_package_with_inline_comment(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test that removing a package that has an inline comment works correctly"""
     # Create a requirements.txt file with inline comments
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/remove-inline-comment")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Write initial content with inline comments

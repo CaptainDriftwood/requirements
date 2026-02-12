@@ -1,4 +1,7 @@
+import pathlib
+
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import find_package
 
@@ -45,8 +48,12 @@ class TestFindPackage:
         assert result.exit_code == 0
         assert result.output.count("requirements.txt") == 4
 
-    def test_find_package_with_git_url(self, cli_runner: CliRunner, tmp_path) -> None:
+    def test_find_package_with_git_url(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test finding a package specified as a git URL with egg fragment."""
+        tmp_path = pathlib.Path("/fake/find-git-url")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("git+https://github.com/user/mypackage.git#egg=mypackage\n")
 
@@ -56,9 +63,11 @@ class TestFindPackage:
         assert "requirements.txt" in result.output
 
     def test_find_package_with_pep440_url(
-        self, cli_runner: CliRunner, tmp_path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test finding a package specified with PEP 440 URL syntax."""
+        tmp_path = pathlib.Path("/fake/find-pep440")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("mypackage @ https://example.com/mypackage-1.0.whl\n")
 
@@ -68,9 +77,11 @@ class TestFindPackage:
         assert "requirements.txt" in result.output
 
     def test_find_package_with_github_repo_fallback(
-        self, cli_runner: CliRunner, tmp_path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test finding a package by GitHub repo name when no egg fragment."""
+        tmp_path = pathlib.Path("/fake/find-github")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("git+https://github.com/user/my-repo.git\n")
 
@@ -79,8 +90,12 @@ class TestFindPackage:
         assert result.exit_code == 0
         assert "requirements.txt" in result.output
 
-    def test_find_package_url_verbose(self, cli_runner: CliRunner, tmp_path) -> None:
+    def test_find_package_url_verbose(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test finding a URL package with verbose output."""
+        tmp_path = pathlib.Path("/fake/find-verbose")
+        tmp_path.mkdir(parents=True)
         url_line = "git+https://github.com/user/repo.git@v1.0#egg=mypackage"
         req_file = tmp_path / "requirements.txt"
         req_file.write_text(f"{url_line}\n")
@@ -93,8 +108,12 @@ class TestFindPackage:
         assert "requirements.txt" in result.output
         assert url_line in result.output
 
-    def test_find_package_url_not_found(self, cli_runner: CliRunner, tmp_path) -> None:
+    def test_find_package_url_not_found(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test that non-matching URL packages are not found."""
+        tmp_path = pathlib.Path("/fake/find-not-found")
+        tmp_path.mkdir(parents=True)
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("git+https://github.com/user/other.git#egg=other\n")
 

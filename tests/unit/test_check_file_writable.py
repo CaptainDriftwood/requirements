@@ -1,35 +1,39 @@
-import tempfile
 from pathlib import Path
+
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.files import check_file_writable
 
 
-def test_check_file_writable_preview_mode():
+def test_check_file_writable_preview_mode(fs: FakeFilesystem):
     """Test that check_file_writable returns True when preview=True."""
     # Create a temporary file
-    with tempfile.NamedTemporaryFile() as temp_file:
-        file_path = Path(temp_file.name)
+    file_path = Path("/fake/test_file.txt")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text("test content")
 
-        # Should return True regardless of file permissions when preview=True
-        result = check_file_writable(file_path, preview=True)
-        assert result is True
+    # Should return True regardless of file permissions when preview=True
+    result = check_file_writable(file_path, preview=True)
+    assert result is True
 
 
-def test_check_file_writable_normal_mode():
+def test_check_file_writable_normal_mode(fs: FakeFilesystem):
     """Test that check_file_writable works correctly in normal mode."""
     # Create a temporary file that should be writable
-    with tempfile.NamedTemporaryFile() as temp_file:
-        file_path = Path(temp_file.name)
+    file_path = Path("/fake/writable.txt")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text("test content")
 
-        # Should return True for writable file in normal mode
-        result = check_file_writable(file_path, preview=False)
-        assert result is True
+    # Should return True for writable file in normal mode
+    result = check_file_writable(file_path, preview=False)
+    assert result is True
 
 
-def test_check_file_writable_read_only_file(tmp_path, capsys):
+def test_check_file_writable_read_only_file(capsys, fs: FakeFilesystem):
     """Test that check_file_writable returns False for read-only files."""
     # Create a read-only file
-    file_path = tmp_path / "readonly.txt"
+    file_path = Path("/fake/readonly.txt")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text("test content")
     file_path.chmod(0o444)  # Make it read-only
 

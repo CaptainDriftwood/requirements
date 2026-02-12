@@ -58,6 +58,7 @@ dev = [
     "wheel>=0.45.1",
     "nox>=2025.11.12",
     "nox-uv>=0.6.3",
+    "pyfakefs>=6.1.1",
 ]
 
 # Ruff configuration

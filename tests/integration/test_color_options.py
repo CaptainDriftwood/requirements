@@ -1,6 +1,9 @@
 """Integration tests for color options."""
 
+import pathlib
+
 import pytest
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import cli
 
@@ -12,8 +15,10 @@ def test_cli_color_flag_help(cli_runner):
     assert "--color / --no-color" in result.output
 
 
-def test_cli_with_color_flag(cli_runner, tmp_path):
+def test_cli_with_color_flag(cli_runner, fs: FakeFilesystem):
     """Test CLI with --color flag."""
+    tmp_path = pathlib.Path("/fake/color-test")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\n")
 
@@ -22,8 +27,10 @@ def test_cli_with_color_flag(cli_runner, tmp_path):
     assert "requirements.txt" in result.output
 
 
-def test_cli_with_no_color_flag(cli_runner, tmp_path):
+def test_cli_with_no_color_flag(cli_runner, fs: FakeFilesystem):
     """Test CLI with --no-color flag."""
+    tmp_path = pathlib.Path("/fake/no-color-test")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\n")
 
@@ -32,8 +39,10 @@ def test_cli_with_no_color_flag(cli_runner, tmp_path):
     assert "requirements.txt" in result.output
 
 
-def test_cli_respects_no_color_env(cli_runner, tmp_path, monkeypatch):
+def test_cli_respects_no_color_env(cli_runner, monkeypatch, fs: FakeFilesystem):
     """Test that CLI respects NO_COLOR environment variable."""
+    tmp_path = pathlib.Path("/fake/no-color-env")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\n")
 
@@ -43,8 +52,10 @@ def test_cli_respects_no_color_env(cli_runner, tmp_path, monkeypatch):
     assert "requirements.txt" in result.output
 
 
-def test_color_flag_overrides_no_color_env(cli_runner, tmp_path, monkeypatch):
+def test_color_flag_overrides_no_color_env(cli_runner, monkeypatch, fs: FakeFilesystem):
     """Test that --color flag overrides NO_COLOR environment variable."""
+    tmp_path = pathlib.Path("/fake/color-override")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\n")
 
@@ -67,9 +78,11 @@ def test_color_flag_overrides_no_color_env(cli_runner, tmp_path, monkeypatch):
     ],
 )
 def test_command_works_with_color_flag(
-    cli_runner, tmp_path, command_name, command_args, needs_path
+    cli_runner, command_name, command_args, needs_path, fs: FakeFilesystem
 ):
     """Test that commands work with --color flag."""
+    tmp_path = pathlib.Path(f"/fake/color-cmd-{command_name}")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\ndjango==3.2.0\n")
 
@@ -93,9 +106,11 @@ def test_command_works_with_color_flag(
     ],
 )
 def test_command_works_with_no_color_flag(
-    cli_runner, tmp_path, command_name, command_args, needs_path
+    cli_runner, command_name, command_args, needs_path, fs: FakeFilesystem
 ):
     """Test that commands work with --no-color flag."""
+    tmp_path = pathlib.Path(f"/fake/no-color-cmd-{command_name}")
+    tmp_path.mkdir(parents=True)
     req_file = tmp_path / "requirements.txt"
     req_file.write_text("requests==2.25.0\ndjango==3.2.0\n")
 

@@ -1,8 +1,8 @@
 import pathlib
 import subprocess
-import tempfile
 
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import (
     add_package,
@@ -68,186 +68,203 @@ class TestCLIIntegration:
 class TestComplexScenarios:
     """Test complex real-world scenarios"""
 
-    def test_workflow_add_update_remove(self, cli_runner: CliRunner) -> None:
+    def test_workflow_add_update_remove(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test complete workflow: add, update, then remove a package"""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("requests==2.25.1\n")
+        td = pathlib.Path("/fake/workflow-test")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("requests==2.25.1\n")
 
-            # Add a package
-            result = cli_runner.invoke(add_package, ["pytest", td])
-            assert result.exit_code == 0
-            contents = requirements_file.read_text()
-            assert "pytest" in contents
-            assert "requests==2.25.1" in contents
+        # Add a package
+        result = cli_runner.invoke(add_package, ["pytest", str(td)])
+        assert result.exit_code == 0
+        contents = requirements_file.read_text()
+        assert "pytest" in contents
+        assert "requests==2.25.1" in contents
 
-            # Update the package
-            result = cli_runner.invoke(update_package, ["pytest", ">=6.0.0", td])
-            assert result.exit_code == 0
-            contents = requirements_file.read_text()
-            assert "pytest>=6.0.0" in contents
+        # Update the package
+        result = cli_runner.invoke(update_package, ["pytest", ">=6.0.0", str(td)])
+        assert result.exit_code == 0
+        contents = requirements_file.read_text()
+        assert "pytest>=6.0.0" in contents
 
-            # Remove the package
-            result = cli_runner.invoke(remove_package, ["pytest", td])
-            assert result.exit_code == 0
-            contents = requirements_file.read_text()
-            assert "pytest" not in contents
-            assert "requests==2.25.1" in contents
+        # Remove the package
+        result = cli_runner.invoke(remove_package, ["pytest", str(td)])
+        assert result.exit_code == 0
+        contents = requirements_file.read_text()
+        assert "pytest" not in contents
+        assert "requests==2.25.1" in contents
 
-    def test_mixed_package_formats(self, cli_runner: CliRunner) -> None:
+    def test_mixed_package_formats(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test handling mixed package formats"""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text(
-                "requests==2.25.1\n"
-                "boto3~=1.0.0\n"
-                "pytest>=6.0.0\n"
-                "django<4.0.0\n"
-                "# comment line\n"
-                "./local_package\n"
-                "git+https://github.com/user/repo.git\n"
-            )
+        td = pathlib.Path("/fake/mixed-formats")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text(
+            "requests==2.25.1\n"
+            "boto3~=1.0.0\n"
+            "pytest>=6.0.0\n"
+            "django<4.0.0\n"
+            "# comment line\n"
+            "./local_package\n"
+            "git+https://github.com/user/repo.git\n"
+        )
 
-            # Test finding packages with different formats
-            result = cli_runner.invoke(find_package, ["requests", td])
-            assert result.exit_code == 0
-            assert "requirements.txt" in result.output
+        # Test finding packages with different formats
+        result = cli_runner.invoke(find_package, ["requests", str(td)])
+        assert result.exit_code == 0
+        assert "requirements.txt" in result.output
 
-            result = cli_runner.invoke(find_package, ["local_package", td])
-            assert result.exit_code == 0
-            assert "requirements.txt" in result.output
+        result = cli_runner.invoke(find_package, ["local_package", str(td)])
+        assert result.exit_code == 0
+        assert "requirements.txt" in result.output
 
-    def test_large_monorepo_simulation(self, cli_runner: CliRunner) -> None:
+    def test_large_monorepo_simulation(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test performance with many nested directories"""
-        with tempfile.TemporaryDirectory() as td:
-            base_path = pathlib.Path(td)
+        td = pathlib.Path("/fake/monorepo")
+        td.mkdir(parents=True)
 
-            # Create 10 nested directories with requirements files
-            for i in range(10):
-                dir_path = base_path / f"service_{i}"
-                dir_path.mkdir()
-                req_file = dir_path / "requirements.txt"
-                req_file.write_text(
-                    f"service_{i}_dependency==1.0.0\ncommon_lib==2.0.0\n"
-                )
+        # Create 10 nested directories with requirements files
+        for i in range(10):
+            dir_path = td / f"service_{i}"
+            dir_path.mkdir()
+            req_file = dir_path / "requirements.txt"
+            req_file.write_text(f"service_{i}_dependency==1.0.0\ncommon_lib==2.0.0\n")
 
-            # Test finding common package across all files
-            result = cli_runner.invoke(find_package, ["common_lib", td])
-            assert result.exit_code == 0
-            assert result.output.count("requirements.txt") == 10
+        # Test finding common package across all files
+        result = cli_runner.invoke(find_package, ["common_lib", str(td)])
+        assert result.exit_code == 0
+        assert result.output.count("requirements.txt") == 10
 
-            # Test updating common package across all files
-            result = cli_runner.invoke(update_package, ["common_lib", "3.0.0", td])
-            assert result.exit_code == 0
+        # Test updating common package across all files
+        result = cli_runner.invoke(update_package, ["common_lib", "3.0.0", str(td)])
+        assert result.exit_code == 0
 
-            # Verify all files were updated
-            for i in range(10):
-                req_file = base_path / f"service_{i}" / "requirements.txt"
-                contents = req_file.read_text()
-                assert "common_lib==3.0.0" in contents
+        # Verify all files were updated
+        for i in range(10):
+            req_file = td / f"service_{i}" / "requirements.txt"
+            contents = req_file.read_text()
+            assert "common_lib==3.0.0" in contents
 
 
 class TestErrorHandling:
     """Test error handling scenarios"""
 
-    def test_invalid_path(self, cli_runner: CliRunner) -> None:
+    def test_invalid_path(self, cli_runner: CliRunner, fs: FakeFilesystem) -> None:
         """Test handling invalid file paths"""
         result = cli_runner.invoke(find_package, ["pytest", "/nonexistent/path"])
         assert result.exit_code == 0
         assert "does not exist" in result.output
 
-    def test_empty_requirements_file(self, cli_runner: CliRunner) -> None:
+    def test_empty_requirements_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test handling empty requirements files"""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("")
+        td = pathlib.Path("/fake/empty")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("")
 
-            result = cli_runner.invoke(find_package, ["pytest", td])
-            assert result.exit_code == 0
-            assert result.output.strip() == ""
+        result = cli_runner.invoke(find_package, ["pytest", str(td)])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
 
-    def test_malformed_requirements_file(self, cli_runner: CliRunner) -> None:
+    def test_malformed_requirements_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test handling malformed requirements files"""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("# Just a comment\n\n# Another comment\n")
+        td = pathlib.Path("/fake/malformed")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("# Just a comment\n\n# Another comment\n")
 
-            result = cli_runner.invoke(find_package, ["pytest", td])
-            assert result.exit_code == 0
-            assert result.output.strip() == ""
+        result = cli_runner.invoke(find_package, ["pytest", str(td)])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
 
 
 class TestVirtualEnvironmentExclusion:
     """Test virtual environment directory exclusion"""
 
     def test_exclude_venv_directory(
-        self, cli_runner: CliRunner, requirements_txt: bytes
+        self, cli_runner: CliRunner, requirements_txt: bytes, fs: FakeFilesystem
     ) -> None:
         """Test that venv directories are excluded"""
-        with tempfile.TemporaryDirectory() as td:
-            # Create main requirements file
-            main_req = pathlib.Path(td) / "requirements.txt"
-            main_req.write_text(requirements_txt.decode("utf-8"))
+        td = pathlib.Path("/fake/venv-test")
+        td.mkdir(parents=True)
+        # Create main requirements file
+        main_req = td / "requirements.txt"
+        main_req.write_text(requirements_txt.decode("utf-8"))
 
-            # Create venv directory with requirements file
-            venv_dir = pathlib.Path(td) / "venv"
-            venv_dir.mkdir()
-            venv_req = venv_dir / "requirements.txt"
-            venv_req.write_text("should_be_excluded\n")
+        # Create venv directory with requirements file
+        venv_dir = td / "venv"
+        venv_dir.mkdir()
+        venv_req = venv_dir / "requirements.txt"
+        venv_req.write_text("should_be_excluded\n")
 
-            # Test that venv requirements are excluded
-            result = cli_runner.invoke(find_package, ["should_be_excluded", td])
-            assert result.exit_code == 0
-            assert result.output.strip() == ""
+        # Test that venv requirements are excluded
+        result = cli_runner.invoke(find_package, ["should_be_excluded", str(td)])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
 
     def test_exclude_dot_venv_directory(
-        self, cli_runner: CliRunner, requirements_txt: bytes
+        self, cli_runner: CliRunner, requirements_txt: bytes, fs: FakeFilesystem
     ) -> None:
         """Test that .venv directories are excluded"""
-        with tempfile.TemporaryDirectory() as td:
-            # Create main requirements file
-            main_req = pathlib.Path(td) / "requirements.txt"
-            main_req.write_text(requirements_txt.decode("utf-8"))
+        td = pathlib.Path("/fake/dotvenv-test")
+        td.mkdir(parents=True)
+        # Create main requirements file
+        main_req = td / "requirements.txt"
+        main_req.write_text(requirements_txt.decode("utf-8"))
 
-            # Create .venv directory with requirements file
-            venv_dir = pathlib.Path(td) / ".venv"
-            venv_dir.mkdir()
-            venv_req = venv_dir / "requirements.txt"
-            venv_req.write_text("should_be_excluded\n")
+        # Create .venv directory with requirements file
+        venv_dir = td / ".venv"
+        venv_dir.mkdir()
+        venv_req = venv_dir / "requirements.txt"
+        venv_req.write_text("should_be_excluded\n")
 
-            # Test that .venv requirements are excluded
-            result = cli_runner.invoke(find_package, ["should_be_excluded", td])
-            assert result.exit_code == 0
-            assert result.output.strip() == ""
+        # Test that .venv requirements are excluded
+        result = cli_runner.invoke(find_package, ["should_be_excluded", str(td)])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
 
     def test_exclude_virtualenv_directory(
-        self, cli_runner: CliRunner, requirements_txt: bytes
+        self, cli_runner: CliRunner, requirements_txt: bytes, fs: FakeFilesystem
     ) -> None:
         """Test that virtualenv directories are excluded"""
-        with tempfile.TemporaryDirectory() as td:
-            # Create main requirements file
-            main_req = pathlib.Path(td) / "requirements.txt"
-            main_req.write_text(requirements_txt.decode("utf-8"))
+        td = pathlib.Path("/fake/virtualenv-test")
+        td.mkdir(parents=True)
+        # Create main requirements file
+        main_req = td / "requirements.txt"
+        main_req.write_text(requirements_txt.decode("utf-8"))
 
-            # Create virtualenv directory with requirements file
-            venv_dir = pathlib.Path(td) / "virtualenv"
-            venv_dir.mkdir()
-            venv_req = venv_dir / "requirements.txt"
-            venv_req.write_text("should_be_excluded\n")
+        # Create virtualenv directory with requirements file
+        venv_dir = td / "virtualenv"
+        venv_dir.mkdir()
+        venv_req = venv_dir / "requirements.txt"
+        venv_req.write_text("should_be_excluded\n")
 
-            # Test that virtualenv requirements are excluded
-            result = cli_runner.invoke(find_package, ["should_be_excluded", td])
-            assert result.exit_code == 0
-            assert result.output.strip() == ""
+        # Test that virtualenv requirements are excluded
+        result = cli_runner.invoke(find_package, ["should_be_excluded", str(td)])
+        assert result.exit_code == 0
+        assert result.output.strip() == ""
 
 
 class TestSortSummary:
     """Test sort command summary output for multiple files."""
 
     def test_sort_multiple_files_summary(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test that sorting multiple files shows a summary."""
+        tmp_path = pathlib.Path("/fake/sort-multiple")
+        tmp_path.mkdir(parents=True)
         # Create 3 unsorted requirements files
         for name in ["project1", "project2", "project3"]:
             subdir = tmp_path / name
@@ -263,9 +280,11 @@ class TestSortSummary:
         assert "3 files total" in result.output
 
     def test_sort_mixed_files_summary(
-        self, cli_runner: CliRunner, tmp_path: pathlib.Path
+        self, cli_runner: CliRunner, fs: FakeFilesystem
     ) -> None:
         """Test summary with mix of sorted and unsorted files."""
+        tmp_path = pathlib.Path("/fake/sort-mixed")
+        tmp_path.mkdir(parents=True)
         # Create one already sorted file
         sorted_dir = tmp_path / "sorted"
         sorted_dir.mkdir()

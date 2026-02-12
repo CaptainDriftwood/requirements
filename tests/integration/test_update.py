@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import update_package
 
@@ -206,12 +207,12 @@ def test_update_with_aws_sam_directory(
 
 
 def test_update_package_with_inline_comment(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test updating a package that has an inline comment on the same line"""
     # Create a requirements.txt file with inline comments
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/update-comments")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Write initial content with inline comments
@@ -240,12 +241,12 @@ def test_update_package_with_inline_comment(
 
 
 def test_update_package_with_inline_comment_preview_mode(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test updating a package with inline comment in preview mode"""
     # Create a requirements.txt file with inline comments
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/update-comments-preview")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Write initial content with inline comments
@@ -275,12 +276,12 @@ def test_update_package_with_inline_comment_preview_mode(
 
 
 def test_update_package_with_invalid_version_specifier(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test updating a package with invalid version specifier fails gracefully"""
     # Create a requirements.txt file
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/update-invalid")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
     requirements_file.write_text("requests==2.26.0\n")
 
@@ -308,12 +309,12 @@ def test_update_package_with_invalid_version_specifier(
 
 
 def test_update_package_with_valid_version_specifiers(
-    cli_runner: CliRunner, tmp_path: pathlib.Path
+    cli_runner: CliRunner, fs: FakeFilesystem
 ) -> None:
     """Test updating a package with various valid version specifiers"""
     # Create a requirements.txt file
-    requirements_dir = tmp_path / "project"
-    requirements_dir.mkdir()
+    requirements_dir = pathlib.Path("/fake/update-valid")
+    requirements_dir.mkdir(parents=True)
     requirements_file = requirements_dir / "requirements.txt"
 
     # Test with various valid version specifiers
