@@ -105,7 +105,7 @@ Color Output:
     default=None,
     help="Enable or disable colored output. Auto-detected by default.",
 )
-@click.version_option(package_name="requirements")
+@click.version_option(package_name="requirements-cli")
 @click.pass_context
 def cli(ctx: click.Context, color: bool | None) -> None:
     """Main CLI entry point."""

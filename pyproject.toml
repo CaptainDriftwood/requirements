@@ -1,5 +1,5 @@
 [project]
-name = "requirements"
+name = "requirements-cli"
 version = "0.2.0"
 description = "Cli tool to update requirements.txt files in a mono repo style project."
 authors = [
@@ -33,9 +33,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CaptainDriftwood/requirements"
-Repository = "https://github.com/CaptainDriftwood/requirements"
-Issues = "https://github.com/CaptainDriftwood/requirements/issues"
+Homepage = "https://github.com/CaptainDriftwood/requirements-cli"
+Repository = "https://github.com/CaptainDriftwood/requirements-cli"
+Issues = "https://github.com/CaptainDriftwood/requirements-cli/issues"
 
 [project.scripts]
 requirements = "requirements.main:cli"

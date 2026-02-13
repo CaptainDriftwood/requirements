@@ -344,7 +344,7 @@ wheels = [
 ]
 
 [[package]]
-name = "requirements"
+name = "requirements-cli"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [

@@ -2,8 +2,8 @@
 
 <img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
 
-[![CI](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/CaptainDriftwood/requirements/graph/badge.svg)](https://codecov.io/gh/CaptainDriftwood/requirements)
+[![CI](https://github.com/CaptainDriftwood/requirements-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/CaptainDriftwood/requirements-cli/graph/badge.svg)](https://codecov.io/gh/CaptainDriftwood/requirements-cli)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
@@ -53,24 +53,24 @@ This project requires Python 3.11 or higher.
 
 Using **uv** (recommended for CLI tools):
 ```bash
-uv tool install git+https://github.com/CaptainDriftwood/requirements.git
+uv tool install git+https://github.com/CaptainDriftwood/requirements-cli.git
 ```
 
 Using **pipx** (alternative for CLI tools):
 ```bash
-pipx install git+https://github.com/CaptainDriftwood/requirements.git
+pipx install git+https://github.com/CaptainDriftwood/requirements-cli.git
 ```
 
 Using **pip**:
 ```bash
-pip install git+https://github.com/CaptainDriftwood/requirements.git
+pip install git+https://github.com/CaptainDriftwood/requirements-cli.git
 ```
 
 ### Install from Local Clone
 
 ```bash
-git clone https://github.com/CaptainDriftwood/requirements.git
-cd requirements
+git clone https://github.com/CaptainDriftwood/requirements-cli.git
+cd requirements-cli
 pip install .
 ```
 
@@ -418,8 +418,8 @@ The following are automatically excluded from searches:
 
 ### Setup
 ```bash
-git clone https://github.com/CaptainDriftwood/requirements.git
-cd requirements
+git clone https://github.com/CaptainDriftwood/requirements-cli.git
+cd requirements-cli
 uv sync
 ```
 
