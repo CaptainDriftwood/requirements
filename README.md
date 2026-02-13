@@ -1,6 +1,6 @@
-# Requirements CLI
-
-<img src="requirements.svg" alt="Requirements CLI Logo" width="200" style="float: right; margin-left: 3px; margin-top: -40px;">
+<p align="center">
+  <img src="assets/logo.svg" alt="Requirements CLI Logo" width="800">
+</p>
 
 [![CI](https://github.com/CaptainDriftwood/requirements-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/CaptainDriftwood/requirements-cli/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/CaptainDriftwood/requirements-cli/graph/badge.svg)](https://codecov.io/gh/CaptainDriftwood/requirements-cli)
