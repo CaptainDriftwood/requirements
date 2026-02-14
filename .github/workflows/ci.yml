@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master]
   pull_request:
-    branches: [master, main]
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   format-lint:
@@ -50,7 +54,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   build-install:
     name: Build & Install
