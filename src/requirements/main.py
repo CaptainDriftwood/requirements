@@ -12,8 +12,11 @@ from requirements.config import (
     ensure_config_dir,
     get_config_file,
     get_default_config_content,
+    get_pypi_fallback_url,
+    get_pypi_index_url,
     load_config,
-    save_color_setting,
+    save_setting,
+    unset_setting,
 )
 from requirements.console import create_console
 from requirements.files import (
@@ -22,7 +25,7 @@ from requirements.files import (
     resolve_paths,
 )
 from requirements.packages import check_package_name, validate_version_specifier
-from requirements.pypi import fetch_package_versions
+from requirements.pypi import PyPIFetchError, fetch_with_fallback
 from requirements.sorting import sort_packages
 
 if TYPE_CHECKING:
@@ -601,10 +604,21 @@ def show_versions(
     Note:
     - Works with PyPI, Nexus, Artifactory, DevPI, and any PEP 503 compliant index
     - Uses the Simple API (PEP 503) to query package versions
+    - Index URL priority: --index-url flag > config pypi.index_url > default PyPI
+    - If primary index fails (network error), falls back to config pypi.fallback_url
     """
     console = get_console_from_context(ctx)
+
+    # Priority: CLI flag > config > default
+    effective_index_url = index_url or get_pypi_index_url()
+    fallback_url = get_pypi_fallback_url()
+
     try:
-        versions = fetch_package_versions(package_name, index_url)
+        versions, _url_used = fetch_with_fallback(
+            package_name,
+            index_url=effective_index_url,
+            fallback_url=fallback_url,
+        )
 
         if not versions:
             raise click.ClickException(f"No versions found for '{package_name}'")
@@ -634,12 +648,11 @@ def show_versions(
                     style="warning",
                 )
 
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
+    except PyPIFetchError as e:
+        original = e.original_error
+        if isinstance(original, urllib.error.HTTPError) and original.code == 404:
             raise click.ClickException(f"Package '{package_name}' not found") from e
-        raise click.ClickException(f"HTTP error: {e}") from e
-    except urllib.error.URLError as e:
-        raise click.ClickException(f"Network error: {e.reason}") from e
+        raise click.ClickException(f"Failed to fetch versions: {e}") from e
 
 
 @cli.group(name="config")
@@ -654,10 +667,13 @@ def config_group() -> None:
         requirements config show
 
     Enable colored output:
-        requirements config set color true
+        requirements config set color.enabled true
 
-    Disable colored output:
-        requirements config set color false
+    Set custom PyPI index:
+        requirements config set pypi.index_url https://nexus.example.com/simple/
+
+    Remove a setting (reset to default):
+        requirements config unset pypi.index_url
 
     Show config file path:
         requirements config path
@@ -695,24 +711,105 @@ def config_path(ctx: click.Context) -> None:
     console.print(str(get_config_file()))
 
 
+VALID_SETTINGS: Final[dict[str, str]] = {
+    "color.enabled": "bool",
+    "pypi.index_url": "url",
+    "pypi.fallback_url": "url",
+}
+
+
+def _validate_url(value: str) -> bool:
+    """Check if a string is a valid URL."""
+    return value.startswith(("http://", "https://"))
+
+
+def _parse_bool(value: str) -> bool | None:
+    """Parse a string to boolean, returns None if invalid."""
+    if value.lower() in ("true", "1", "yes"):
+        return True
+    if value.lower() in ("false", "0", "no"):
+        return False
+    return None
+
+
 @config_group.command(name="set")
-@click.argument("setting", type=click.Choice(["color"]))
-@click.argument("value", type=click.Choice(["true", "false"]))
+@click.argument("setting")
+@click.argument("value")
 @click.pass_context
 def config_set(ctx: click.Context, setting: str, value: str) -> None:
     """Set a configuration value.
 
     \b
     Available settings:
-        color: Enable/disable colored output (true/false)
+        color.enabled     Enable/disable colored output (true/false)
+        pypi.index_url    Custom PyPI index URL
+        pypi.fallback_url Fallback URL if primary fails
+
+    \b
+    Examples:
+        requirements config set color.enabled true
+        requirements config set pypi.index_url https://nexus.example.com/simple/
     """
     console = get_console_from_context(ctx)
 
-    if setting == "color":
-        enabled = value == "true"
-        save_color_setting(enabled)
-        status = "enabled" if enabled else "disabled"
-        console.print(f"Color output {status}")
+    if setting not in VALID_SETTINGS:
+        valid = ", ".join(sorted(VALID_SETTINGS.keys()))
+        raise click.ClickException(f"Unknown setting '{setting}'. Valid: {valid}")
+
+    if "." not in setting:
+        raise click.ClickException(
+            f"Setting must be in 'section.key' format: {setting}"
+        )
+
+    section, key = setting.split(".", 1)
+    setting_type = VALID_SETTINGS[setting]
+
+    if setting_type == "bool":
+        parsed = _parse_bool(value)
+        if parsed is None:
+            raise click.ClickException(
+                f"Invalid boolean value '{value}'. Use true/false."
+            )
+        save_setting(section, key, parsed)
+        status = "enabled" if parsed else "disabled"
+        console.print(f"{setting} {status}")
+    elif setting_type == "url":
+        if not _validate_url(value):
+            raise click.ClickException(
+                f"Invalid URL '{value}'. Must start with http:// or https://"
+            )
+        save_setting(section, key, value)
+        console.print(f"{setting} = {value}")
+
+
+@config_group.command(name="unset")
+@click.argument("setting")
+@click.pass_context
+def config_unset(ctx: click.Context, setting: str) -> None:
+    """Remove a configuration setting (reset to default).
+
+    \b
+    Examples:
+        requirements config unset pypi.index_url
+        requirements config unset color.enabled
+    """
+    console = get_console_from_context(ctx)
+
+    if setting not in VALID_SETTINGS:
+        valid = ", ".join(sorted(VALID_SETTINGS.keys()))
+        raise click.ClickException(f"Unknown setting '{setting}'. Valid: {valid}")
+
+    if "." not in setting:
+        raise click.ClickException(
+            f"Setting must be in 'section.key' format: {setting}"
+        )
+
+    section, key = setting.split(".", 1)
+
+    if unset_setting(section, key):
+        console.print(f"Removed {setting}")
+    else:
+        console.print(f"{setting} was not set")
 
 
 @config_group.command(name="init")

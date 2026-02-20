@@ -10,15 +10,6 @@ from click.testing import CliRunner
 from requirements.main import cli
 
 
-@pytest.fixture
-def requests_simple_html() -> str:
-    """Load the requests package Simple API HTML fixture."""
-    fixture_path = (
-        pathlib.Path(__file__).parent.parent / "fixtures" / "pypi_simple_requests.html"
-    )
-    return fixture_path.read_text()
-
-
 class TestVersionsCommand:
     """Test the versions CLI command."""
 
@@ -138,7 +129,8 @@ class TestVersionsCommand:
             result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 1
-        assert "Network error" in result.output
+        assert "Failed to fetch" in result.output
+        assert "Connection refused" in result.output
 
     def test_versions_fewer_than_limit(
         self, cli_runner: CliRunner, requests_simple_html: str
@@ -189,7 +181,8 @@ class TestVersionsCommand:
             result = cli_runner.invoke(cli, ["versions", "requests"])
 
         assert result.exit_code == 1
-        assert "HTTP error" in result.output
+        assert "Failed to fetch" in result.output
+        assert "500" in result.output or "Internal Server Error" in result.output
 
     def test_versions_no_versions_found(self, cli_runner: CliRunner) -> None:
         """Test versions command when no versions are found."""
@@ -258,3 +251,122 @@ class TestVersionsCommand:
         assert "Available versions:" not in result.output
         # Versions should be on separate lines
         assert "2.32.3\n" in result.output
+
+
+class TestVersionsWithConfig:
+    """Test versions command with configuration integration."""
+
+    def test_versions_uses_config_index_url(
+        self,
+        cli_runner: CliRunner,
+        requests_simple_html: str,
+        fake_home: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that versions command uses configured index URL."""
+        monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+        # Set config
+        cli_runner.invoke(
+            cli,
+            ["config", "set", "pypi.index_url", "https://config.example.com/simple/"],
+        )
+
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch(
+            "urllib.request.urlopen", return_value=mock_response
+        ) as mock_urlopen:
+            result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 0
+        # Verify config URL was used
+        call_args = mock_urlopen.call_args
+        request = call_args[0][0]
+        assert "config.example.com" in request.full_url
+
+    def test_versions_cli_flag_overrides_config(
+        self,
+        cli_runner: CliRunner,
+        requests_simple_html: str,
+        fake_home: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that --index-url flag overrides config."""
+        monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+        # Set config to one URL
+        cli_runner.invoke(
+            cli,
+            ["config", "set", "pypi.index_url", "https://config.example.com/simple/"],
+        )
+
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch(
+            "urllib.request.urlopen", return_value=mock_response
+        ) as mock_urlopen:
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "versions",
+                    "requests",
+                    "--index-url",
+                    "https://cli-override.example.com/simple/",
+                ],
+            )
+
+        assert result.exit_code == 0
+        # Verify CLI flag URL was used, not config
+        call_args = mock_urlopen.call_args
+        request = call_args[0][0]
+        assert "cli-override.example.com" in request.full_url
+        assert "config.example.com" not in request.full_url
+
+    def test_versions_uses_fallback_on_primary_failure(
+        self,
+        cli_runner: CliRunner,
+        requests_simple_html: str,
+        fake_home: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that versions command uses fallback URL on primary failure."""
+        monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+        # Set both primary and fallback URLs
+        cli_runner.invoke(
+            cli,
+            ["config", "set", "pypi.index_url", "https://primary.example.com/simple/"],
+        )
+        cli_runner.invoke(
+            cli,
+            [
+                "config",
+                "set",
+                "pypi.fallback_url",
+                "https://fallback.example.com/simple/",
+            ],
+        )
+
+        mock_response = MagicMock()
+        mock_response.read.return_value = requests_simple_html.encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        def side_effect(request, **kwargs):
+            if "primary" in request.full_url:
+                raise urllib.error.URLError("Connection refused")
+            return mock_response
+
+        with patch("urllib.request.urlopen", side_effect=side_effect):
+            result = cli_runner.invoke(cli, ["versions", "requests"])
+
+        assert result.exit_code == 0
+        assert "requests" in result.output
+        assert "2.32.3" in result.output  # Latest version from fixture

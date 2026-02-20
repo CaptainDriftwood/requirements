@@ -1,14 +1,14 @@
 import pathlib
-import tempfile
 
 import pytest
 from click.testing import CliRunner
+from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import sort_requirements
 from requirements.sorting import sort_packages
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def packages() -> list[str]:
     return [
         "boto3",
@@ -170,63 +170,78 @@ def test_sort_case_sensitive() -> None:
 class TestSortRequirementsCommand:
     """Test sort_requirements CLI command functionality."""
 
-    def test_sort_requirements_file(self, cli_runner: CliRunner) -> None:
+    def test_sort_requirements_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test sorting a requirements file."""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("zpackage\napache\nboto3\n")
+        td = pathlib.Path("/fake/sort-test")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("zpackage\napache\nboto3\n")
 
-            result = cli_runner.invoke(sort_requirements, [td])
-            assert result.exit_code == 0
-            assert "Sorted" in result.output
+        result = cli_runner.invoke(sort_requirements, [str(td)])
+        assert result.exit_code == 0
+        assert "Sorted" in result.output
 
-            contents = requirements_file.read_text()
-            assert contents == "apache\nboto3\nzpackage\n"
+        contents = requirements_file.read_text()
+        assert contents == "apache\nboto3\nzpackage\n"
 
-    def test_sort_already_sorted_file(self, cli_runner: CliRunner) -> None:
+    def test_sort_already_sorted_file(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test sorting an already sorted requirements file."""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("apache\nboto3\nzpackage\n")
+        td = pathlib.Path("/fake/sort-already-sorted")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("apache\nboto3\nzpackage\n")
 
-            result = cli_runner.invoke(sort_requirements, [td])
-            assert result.exit_code == 0
-            assert "already sorted" in result.output
+        result = cli_runner.invoke(sort_requirements, [str(td)])
+        assert result.exit_code == 0
+        assert "already sorted" in result.output
 
-    def test_sort_requirements_with_preview(self, cli_runner: CliRunner) -> None:
+    def test_sort_requirements_with_preview(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test sorting requirements with preview flag."""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("zpackage\napache\nboto3\n")
+        td = pathlib.Path("/fake/sort-preview")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("zpackage\napache\nboto3\n")
 
-            result = cli_runner.invoke(sort_requirements, [td, "--preview"])
-            assert result.exit_code == 0
-            assert "Previewing changes" in result.output
+        result = cli_runner.invoke(sort_requirements, [str(td), "--preview"])
+        assert result.exit_code == 0
+        assert "Previewing changes" in result.output
 
-            # Verify file unchanged
-            contents = requirements_file.read_text()
-            assert contents == "zpackage\napache\nboto3\n"
+        # Verify file unchanged
+        contents = requirements_file.read_text()
+        assert contents == "zpackage\napache\nboto3\n"
 
-    def test_sort_removes_comments(self, cli_runner: CliRunner) -> None:
+    def test_sort_removes_comments(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test that sorting removes standalone comments."""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("# Header\nzpackage\n# Comment\napache\n")
+        td = pathlib.Path("/fake/sort-comments")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("# Header\nzpackage\n# Comment\napache\n")
 
-            result = cli_runner.invoke(sort_requirements, [td])
-            assert result.exit_code == 0
+        result = cli_runner.invoke(sort_requirements, [str(td)])
+        assert result.exit_code == 0
 
-            contents = requirements_file.read_text()
-            assert contents == "apache\nzpackage\n"
+        contents = requirements_file.read_text()
+        assert contents == "apache\nzpackage\n"
 
-    def test_sort_preserves_inline_comments(self, cli_runner: CliRunner) -> None:
+    def test_sort_preserves_inline_comments(
+        self, cli_runner: CliRunner, fs: FakeFilesystem
+    ) -> None:
         """Test that sorting preserves inline comments."""
-        with tempfile.TemporaryDirectory() as td:
-            requirements_file = pathlib.Path(td) / "requirements.txt"
-            requirements_file.write_text("zpackage==1.0.0  # pinned\napache==2.0.0\n")
+        td = pathlib.Path("/fake/sort-inline-comments")
+        td.mkdir(parents=True)
+        requirements_file = td / "requirements.txt"
+        requirements_file.write_text("zpackage==1.0.0  # pinned\napache==2.0.0\n")
 
-            result = cli_runner.invoke(sort_requirements, [td])
-            assert result.exit_code == 0
+        result = cli_runner.invoke(sort_requirements, [str(td)])
+        assert result.exit_code == 0
 
-            contents = requirements_file.read_text()
-            assert contents == "apache==2.0.0\nzpackage==1.0.0  # pinned\n"
+        contents = requirements_file.read_text()
+        assert contents == "apache==2.0.0\nzpackage==1.0.0  # pinned\n"

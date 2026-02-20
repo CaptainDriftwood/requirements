@@ -1,24 +1,17 @@
 """Tests for PyPI Simple API client."""
 
-import pathlib
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from requirements.pypi import (
+    PyPIFetchError,
     SimpleAPIParser,
     _extract_version_from_filename,
     fetch_package_versions,
+    fetch_with_fallback,
 )
-
-
-@pytest.fixture
-def requests_simple_html() -> str:
-    """Load the requests package Simple API HTML fixture."""
-    fixture_path = (
-        pathlib.Path(__file__).parent.parent / "fixtures" / "pypi_simple_requests.html"
-    )
-    return fixture_path.read_text()
 
 
 class TestSimpleAPIParser:
@@ -95,13 +88,8 @@ class TestExtractVersionFromFilename:
 class TestFetchPackageVersions:
     """Tests for fetching package versions."""
 
-    def test_fetch_versions_from_fixture(self, requests_simple_html: str) -> None:
-        mock_response = MagicMock()
-        mock_response.read.return_value = requests_simple_html.encode("utf-8")
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-
-        with patch("urllib.request.urlopen", return_value=mock_response):
+    def test_fetch_versions_from_fixture(self, mock_pypi_response: MagicMock) -> None:
+        with patch("urllib.request.urlopen", return_value=mock_pypi_response):
             versions = fetch_package_versions("requests")
 
         # Should have 4 versions (2.32.0 is yanked and excluded)
@@ -112,27 +100,17 @@ class TestFetchPackageVersions:
         assert versions[2] == "2.28.1"
         assert versions[3] == "2.28.0"
 
-    def test_fetch_versions_include_yanked(self, requests_simple_html: str) -> None:
-        mock_response = MagicMock()
-        mock_response.read.return_value = requests_simple_html.encode("utf-8")
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-
-        with patch("urllib.request.urlopen", return_value=mock_response):
+    def test_fetch_versions_include_yanked(self, mock_pypi_response: MagicMock) -> None:
+        with patch("urllib.request.urlopen", return_value=mock_pypi_response):
             versions = fetch_package_versions("requests", include_yanked=True)
 
         # Should have 5 versions (including yanked 2.32.0)
         assert len(versions) == 5
         assert "2.32.0" in versions
 
-    def test_fetch_versions_custom_index(self, requests_simple_html: str) -> None:
-        mock_response = MagicMock()
-        mock_response.read.return_value = requests_simple_html.encode("utf-8")
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-
+    def test_fetch_versions_custom_index(self, mock_pypi_response: MagicMock) -> None:
         with patch(
-            "urllib.request.urlopen", return_value=mock_response
+            "urllib.request.urlopen", return_value=mock_pypi_response
         ) as mock_urlopen:
             fetch_package_versions(
                 "requests", index_url="https://nexus.example.com/simple"
@@ -144,15 +122,10 @@ class TestFetchPackageVersions:
         assert "nexus.example.com" in request.full_url
 
     def test_fetch_versions_normalizes_package_name(
-        self, requests_simple_html: str
+        self, mock_pypi_response: MagicMock
     ) -> None:
-        mock_response = MagicMock()
-        mock_response.read.return_value = requests_simple_html.encode("utf-8")
-        mock_response.__enter__ = MagicMock(return_value=mock_response)
-        mock_response.__exit__ = MagicMock(return_value=False)
-
         with patch(
-            "urllib.request.urlopen", return_value=mock_response
+            "urllib.request.urlopen", return_value=mock_pypi_response
         ) as mock_urlopen:
             fetch_package_versions("My_Package.Name")
 
@@ -160,3 +133,135 @@ class TestFetchPackageVersions:
         call_args = mock_urlopen.call_args
         request = call_args[0][0]
         assert "my-package-name" in request.full_url
+
+
+class TestPyPIFetchError:
+    """Tests for PyPIFetchError exception."""
+
+    def test_error_attributes(self) -> None:
+        original = ValueError("original error")
+        error = PyPIFetchError("https://example.com", original)
+
+        assert error.url == "https://example.com"
+        assert error.original_error is original
+        assert "https://example.com" in str(error)
+        assert "original error" in str(error)
+
+
+class TestFetchWithFallback:
+    """Tests for fetch_with_fallback function."""
+
+    def test_returns_primary_on_success(self, mock_pypi_response: MagicMock) -> None:
+        """Test that primary URL results are returned on success."""
+        with patch("urllib.request.urlopen", return_value=mock_pypi_response):
+            versions, url_used = fetch_with_fallback(
+                "requests",
+                index_url="https://primary.example.com/simple/",
+                fallback_url="https://fallback.example.com/simple/",
+            )
+
+        assert len(versions) == 4
+        assert url_used == "https://primary.example.com/simple/"
+
+    def test_uses_fallback_on_network_error(
+        self, mock_pypi_response: MagicMock
+    ) -> None:
+        """Test that fallback is used on network error."""
+
+        def side_effect(request, **kwargs):
+            if "primary" in request.full_url:
+                raise urllib.error.URLError("Connection refused")
+            return mock_pypi_response
+
+        with patch("urllib.request.urlopen", side_effect=side_effect):
+            versions, url_used = fetch_with_fallback(
+                "requests",
+                index_url="https://primary.example.com/simple/",
+                fallback_url="https://fallback.example.com/simple/",
+            )
+
+        assert len(versions) == 4
+        assert url_used == "https://fallback.example.com/simple/"
+
+    def test_uses_fallback_on_server_error(self, mock_pypi_response: MagicMock) -> None:
+        """Test that fallback is used on HTTP 500 error."""
+
+        def side_effect(request, **kwargs):
+            if "primary" in request.full_url:
+                raise urllib.error.HTTPError(
+                    url=request.full_url,
+                    code=500,
+                    msg="Internal Server Error",
+                    hdrs={},  # type: ignore[arg-type]
+                    fp=None,
+                )
+            return mock_pypi_response
+
+        with patch("urllib.request.urlopen", side_effect=side_effect):
+            versions, url_used = fetch_with_fallback(
+                "requests",
+                index_url="https://primary.example.com/simple/",
+                fallback_url="https://fallback.example.com/simple/",
+            )
+
+        assert len(versions) == 4
+        assert url_used == "https://fallback.example.com/simple/"
+
+    def test_no_fallback_on_404(self) -> None:
+        """Test that 404 does NOT trigger fallback."""
+        error = urllib.error.HTTPError(
+            url="https://primary.example.com/simple/nonexistent/",
+            code=404,
+            msg="Not Found",
+            hdrs={},  # type: ignore[arg-type]
+            fp=None,
+        )
+
+        with patch("urllib.request.urlopen", side_effect=error):
+            with pytest.raises(PyPIFetchError) as exc_info:
+                fetch_with_fallback(
+                    "nonexistent",
+                    index_url="https://primary.example.com/simple/",
+                    fallback_url="https://fallback.example.com/simple/",
+                )
+
+        assert "primary.example.com" in exc_info.value.url
+        assert isinstance(exc_info.value.original_error, urllib.error.HTTPError)
+        assert exc_info.value.original_error.code == 404
+
+    def test_raises_when_both_fail(self) -> None:
+        """Test that error is raised when both URLs fail."""
+        error = urllib.error.URLError("Connection refused")
+
+        with patch("urllib.request.urlopen", side_effect=error):
+            with pytest.raises(PyPIFetchError) as exc_info:
+                fetch_with_fallback(
+                    "requests",
+                    index_url="https://primary.example.com/simple/",
+                    fallback_url="https://fallback.example.com/simple/",
+                )
+
+        assert "primary.example.com" in exc_info.value.url
+        assert "fallback.example.com" in exc_info.value.url
+
+    def test_no_fallback_raises_on_error(self) -> None:
+        """Test that error is raised when no fallback and primary fails."""
+        error = urllib.error.URLError("Connection refused")
+
+        with patch("urllib.request.urlopen", side_effect=error):
+            with pytest.raises(PyPIFetchError):
+                fetch_with_fallback(
+                    "requests",
+                    index_url="https://primary.example.com/simple/",
+                    fallback_url=None,
+                )
+
+    def test_uses_default_index_when_none_provided(
+        self, mock_pypi_response: MagicMock
+    ) -> None:
+        """Test that default PyPI is used when no index URL provided."""
+        with patch("urllib.request.urlopen", return_value=mock_pypi_response):
+            versions, url_used = fetch_with_fallback("requests")
+
+        assert len(versions) == 4
+        assert url_used == "https://pypi.org/simple/"

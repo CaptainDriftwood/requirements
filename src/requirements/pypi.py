@@ -1,5 +1,7 @@
 """PyPI Simple API client for querying package versions."""
 
+from __future__ import annotations
+
 import re
 import urllib.error
 import urllib.request
@@ -8,6 +10,20 @@ from html.parser import HTMLParser
 from packaging.version import InvalidVersion, Version
 
 DEFAULT_INDEX_URL = "https://pypi.org/simple/"
+
+
+class PyPIFetchError(Exception):
+    """Error fetching package information from PyPI.
+
+    Attributes:
+        url: The URL that failed.
+        original_error: The underlying exception.
+    """
+
+    def __init__(self, url: str, original_error: Exception) -> None:
+        self.url = url
+        self.original_error = original_error
+        super().__init__(f"Failed to fetch from {url}: {original_error}")
 
 
 class SimpleAPIParser(HTMLParser):
@@ -120,3 +136,65 @@ def fetch_package_versions(
                 continue
 
     return sorted(versions_set, key=Version, reverse=True)
+
+
+def fetch_with_fallback(
+    package_name: str,
+    index_url: str | None = None,
+    fallback_url: str | None = None,
+    include_yanked: bool = False,
+) -> tuple[list[str], str]:
+    """Fetch package versions with fallback support.
+
+    Tries the primary URL first. On network/server errors, falls back to
+    the fallback URL if provided. Does NOT fall back on 404 errors since
+    that indicates the package doesn't exist.
+
+    Args:
+        package_name: Name of the package to query.
+        index_url: Primary index URL (default: PyPI).
+        fallback_url: Fallback URL to try on network errors.
+        include_yanked: Whether to include yanked versions.
+
+    Returns:
+        A tuple of (versions, url_used) where versions is the list of
+        version strings and url_used is the URL that succeeded.
+
+    Raises:
+        PyPIFetchError: If both URLs fail or the package is not found.
+    """
+    primary_url = index_url or DEFAULT_INDEX_URL
+
+    try:
+        versions = fetch_package_versions(
+            package_name, primary_url, include_yanked=include_yanked
+        )
+        return versions, primary_url
+    except urllib.error.HTTPError as e:
+        # Don't fall back on 404 - package doesn't exist
+        if e.code == 404:
+            raise PyPIFetchError(primary_url, e) from e
+        # For other HTTP errors, try fallback if available
+        if fallback_url:
+            primary_error = e
+        else:
+            raise PyPIFetchError(primary_url, e) from e
+    except urllib.error.URLError as e:
+        # Network error - try fallback if available
+        if fallback_url:
+            primary_error = e
+        else:
+            raise PyPIFetchError(primary_url, e) from e
+
+    # Try fallback URL
+    try:
+        versions = fetch_package_versions(
+            package_name, fallback_url, include_yanked=include_yanked
+        )
+        return versions, fallback_url
+    except (urllib.error.HTTPError, urllib.error.URLError) as e:
+        # Both failed - raise error mentioning both
+        raise PyPIFetchError(
+            f"{primary_url} and {fallback_url}",
+            Exception(f"Primary: {primary_error}, Fallback: {e}"),
+        ) from e

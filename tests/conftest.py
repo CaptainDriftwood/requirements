@@ -1,19 +1,40 @@
 import pathlib
 from collections.abc import Generator
+from unittest.mock import MagicMock
 
 import pytest
 from click.testing import CliRunner
 from pyfakefs.fake_filesystem import FakeFilesystem
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def cli_runner() -> Generator[CliRunner, None, None]:
+    """Reusable CLI runner for all tests."""
     yield CliRunner()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def requirements_txt() -> bytes:
     return b"pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
+
+
+@pytest.fixture(scope="session")
+def requests_simple_html() -> str:
+    """Load the requests package Simple API HTML fixture."""
+    fixture_path = (
+        pathlib.Path(__file__).parent / "fixtures" / "pypi_simple_requests.html"
+    )
+    return fixture_path.read_text()
+
+
+@pytest.fixture
+def mock_pypi_response(requests_simple_html: str) -> MagicMock:
+    """Create a mock urllib response for PyPI Simple API tests."""
+    mock_response = MagicMock()
+    mock_response.read.return_value = requests_simple_html.encode("utf-8")
+    mock_response.__enter__ = MagicMock(return_value=mock_response)
+    mock_response.__exit__ = MagicMock(return_value=False)
+    return mock_response
 
 
 @pytest.fixture
@@ -71,6 +92,14 @@ def single_requirements_file_with_aws_sam_build_directory(
 
 
 @pytest.fixture
+def fake_home(fs: FakeFilesystem) -> pathlib.Path:
+    """Create a fake home directory for config tests."""
+    home = pathlib.Path("/fake/home")
+    home.mkdir(parents=True)
+    return home
+
+
+@pytest.fixture(scope="session")
 def requirements_txt_with_comments() -> bytes:
     """Requirements file with comments and blank lines"""
     return b"""# Production dependencies
@@ -86,7 +115,7 @@ black==21.0.0
 """
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def complex_requirements_txt() -> bytes:
     """Complex requirements file with various package formats"""
     return b"""# Main dependencies
