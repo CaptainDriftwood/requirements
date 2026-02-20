@@ -296,13 +296,25 @@ The CLI supports a configuration file stored in your home directory at `~/.requi
 requirements config init
 ```
 
-**Set color preference:**
+**Set configuration values:**
 ```bash
 # Enable colors
-requirements config set color true
+requirements config set color.enabled true
 
 # Disable colors
-requirements config set color false
+requirements config set color.enabled false
+
+# Set custom PyPI index URL
+requirements config set pypi.index_url https://nexus.example.com/simple/
+
+# Set fallback URL (used when primary fails)
+requirements config set pypi.fallback_url https://pypi.org/simple/
+```
+
+**Remove configuration values (reset to default):**
+```bash
+requirements config unset pypi.index_url
+requirements config unset color.enabled
 ```
 
 **View current settings:**
@@ -315,11 +327,27 @@ requirements config show
 requirements config path
 ```
 
+**Available settings:**
+| Setting | Type | Description |
+|---------|------|-------------|
+| `color.enabled` | bool | Enable/disable colored output |
+| `pypi.index_url` | URL | Primary PyPI index URL for version queries |
+| `pypi.fallback_url` | URL | Fallback URL if primary fails (network errors only) |
+
 **Example config file (`~/.requirements/config.toml`):**
 ```toml
 [color]
 enabled = true
+
+[pypi]
+index_url = "https://nexus.example.com/simple/"
+fallback_url = "https://pypi.org/simple/"
 ```
+
+**Index URL priority:**
+1. `--index-url` flag (highest priority)
+2. Config `pypi.index_url`
+3. Default PyPI (`https://pypi.org/simple/`)
 
 ### Examples
 
