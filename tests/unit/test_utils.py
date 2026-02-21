@@ -5,67 +5,81 @@ import pytest
 from requirements.files import gather_requirements_files, resolve_paths
 from requirements.packages import check_package_name
 
-
-class TestGatherRequirementsFiles:
-    """Test functionality when locating requirements.txt files"""
-
-    def test_single_requirements_file(self, single_requirements_file: str) -> None:
-        filepath = pathlib.Path(single_requirements_file)
-        files = gather_requirements_files([filepath])
-        assert len(files) == 1
-
-    def test_multiple_requirements_files(
-        self, multiple_nested_directories: str
-    ) -> None:
-        filepath = pathlib.Path(multiple_nested_directories)
-        files = gather_requirements_files([filepath])
-        assert len(files) == 4
+# =============================================================================
+# gather_requirements_files tests
+# =============================================================================
 
 
-class TestResolvePathsFunction:
-    """Test resolve_paths function"""
+def test_gather_single_requirements_file(single_requirements_file: str) -> None:
+    """Test gathering a single requirements file"""
+    filepath = pathlib.Path(single_requirements_file)
+    files = gather_requirements_files([filepath])
+    assert len(files) == 1
 
-    def test_resolve_single_path(self) -> None:
-        """Test resolving a single path"""
-        result = resolve_paths(("test_path",))
-        assert len(result) == 1
-        assert result[0] == pathlib.Path("test_path")
 
-    def test_resolve_multiple_paths(self) -> None:
-        """Test resolving multiple paths"""
-        result = resolve_paths(("path1", "path2", "path3"))
-        assert len(result) == 3
-        assert result[0] == pathlib.Path("path1")
-        assert result[1] == pathlib.Path("path2")
-        assert result[2] == pathlib.Path("path3")
+def test_gather_multiple_requirements_files(multiple_nested_directories: str) -> None:
+    """Test gathering multiple requirements files from nested directories"""
+    filepath = pathlib.Path(multiple_nested_directories)
+    files = gather_requirements_files([filepath])
+    assert len(files) == 4
 
-    def test_resolve_empty_paths(self) -> None:
-        """Test resolving empty paths defaults to current directory"""
-        result = resolve_paths(())
-        assert len(result) == 1
-        assert result[0] == pathlib.Path.cwd()
 
-    def test_resolve_wildcard_path(self) -> None:
-        """Test resolving wildcard path defaults to current directory"""
-        result = resolve_paths(("*",))
-        assert len(result) == 1
-        assert result[0] == pathlib.Path.cwd()
+# =============================================================================
+# resolve_paths tests
+# =============================================================================
 
-    def test_resolve_paths_with_spaces(self) -> None:
-        """Test resolving paths that contain spaces"""
-        result = resolve_paths(("/path/with spaces/project",))
-        assert len(result) == 1
-        assert result[0] == pathlib.Path("/path/with spaces/project")
 
-    def test_resolve_multiple_paths_with_spaces(self) -> None:
-        """Test resolving multiple paths where some contain spaces"""
-        result = resolve_paths(
-            ("/path/with spaces/project", "/normal/path", "/another path/here")
-        )
-        assert len(result) == 3
-        assert result[0] == pathlib.Path("/path/with spaces/project")
-        assert result[1] == pathlib.Path("/normal/path")
-        assert result[2] == pathlib.Path("/another path/here")
+def test_resolve_single_path() -> None:
+    """Test resolving a single path"""
+    result = resolve_paths(("test_path",))
+    assert len(result) == 1
+    assert result[0] == pathlib.Path("test_path")
+
+
+def test_resolve_multiple_paths() -> None:
+    """Test resolving multiple paths"""
+    result = resolve_paths(("path1", "path2", "path3"))
+    assert len(result) == 3
+    assert result[0] == pathlib.Path("path1")
+    assert result[1] == pathlib.Path("path2")
+    assert result[2] == pathlib.Path("path3")
+
+
+def test_resolve_empty_paths() -> None:
+    """Test resolving empty paths defaults to current directory"""
+    result = resolve_paths(())
+    assert len(result) == 1
+    assert result[0] == pathlib.Path.cwd()
+
+
+def test_resolve_wildcard_path() -> None:
+    """Test resolving wildcard path defaults to current directory"""
+    result = resolve_paths(("*",))
+    assert len(result) == 1
+    assert result[0] == pathlib.Path.cwd()
+
+
+def test_resolve_paths_with_spaces() -> None:
+    """Test resolving paths that contain spaces"""
+    result = resolve_paths(("/path/with spaces/project",))
+    assert len(result) == 1
+    assert result[0] == pathlib.Path("/path/with spaces/project")
+
+
+def test_resolve_multiple_paths_with_spaces() -> None:
+    """Test resolving multiple paths where some contain spaces"""
+    result = resolve_paths(
+        ("/path/with spaces/project", "/normal/path", "/another path/here")
+    )
+    assert len(result) == 3
+    assert result[0] == pathlib.Path("/path/with spaces/project")
+    assert result[1] == pathlib.Path("/normal/path")
+    assert result[2] == pathlib.Path("/another path/here")
+
+
+# =============================================================================
+# check_package_name tests
+# =============================================================================
 
 
 @pytest.mark.parametrize(

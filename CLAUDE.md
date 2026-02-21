@@ -27,7 +27,7 @@ just type       # Run ty type checker
 
 ## Testing Guidelines
 
-- **Prefer test functions over test classes**: Use standalone test functions unless grouping related scenarios with shared fixtures.
+- **Use standalone test functions**: Do not use test classes. Organize tests by naming convention (e.g., `test_<feature>_<scenario>`) and use shared fixtures from `conftest.py` instead of class-based grouping.
 - **Use pytest.parametrize**: For multiple inputs or scenarios, use `@pytest.mark.parametrize` instead of multiple assertions or separate test functions.
 - **Use pyfakefs**: For filesystem tests, use fixtures from `conftest.py` (e.g., `single_requirements_file`, `fs`) not `tempfile`.
 - **Test organization**: Unit tests in `tests/unit/`, integration tests in `tests/integration/`.
@@ -50,6 +50,7 @@ just type       # Run ty type checker
 
 ## Avoid
 
+- Don't use test classes—use standalone test functions with descriptive names
 - Don't use `tempfile` for tests—use pyfakefs fixtures
 - Don't add commands without `--preview` support
 - Don't hardcode colors—use the theme in `console.py`
