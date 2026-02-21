@@ -9,6 +9,9 @@ import tomllib
 from pathlib import Path
 from typing import Any, Final
 
+# Type alias for valid configuration values
+ConfigValue = bool | str | int | float | list[Any]
+
 CONFIG_DIR_NAME: Final[str] = ".requirements"
 CONFIG_FILE_NAME: Final[str] = "config.toml"
 
@@ -65,6 +68,91 @@ def get_color_setting() -> bool | None:
             return enabled
 
     return None
+
+
+def get_setting(section: str, key: str) -> ConfigValue | None:
+    """Get a configuration setting by section and key.
+
+    Args:
+        section: The configuration section (e.g., 'color', 'pypi').
+        key: The key within the section (e.g., 'enabled', 'index_url').
+
+    Returns:
+        The configuration value, or None if not configured.
+    """
+    config = load_config()
+    section_config = config.get(section, {})
+
+    if isinstance(section_config, dict):
+        return section_config.get(key)
+
+    return None
+
+
+def save_setting(section: str, key: str, value: ConfigValue) -> None:
+    """Save a configuration setting.
+
+    Args:
+        section: The configuration section (e.g., 'color', 'pypi').
+        key: The key within the section (e.g., 'enabled', 'index_url').
+        value: The value to save.
+    """
+    ensure_config_dir()
+    config_file = get_config_file()
+    config = load_config()
+
+    if section not in config:
+        config[section] = {}
+    config[section][key] = value
+
+    _write_config(config_file, config)
+
+
+def unset_setting(section: str, key: str) -> bool:
+    """Remove a configuration setting.
+
+    Args:
+        section: The configuration section (e.g., 'color', 'pypi').
+        key: The key within the section (e.g., 'enabled', 'index_url').
+
+    Returns:
+        True if the setting was removed, False if it didn't exist.
+    """
+    config_file = get_config_file()
+    config = load_config()
+
+    section_config = config.get(section, {})
+    if not isinstance(section_config, dict) or key not in section_config:
+        return False
+
+    del section_config[key]
+
+    # Remove empty sections
+    if not section_config:
+        del config[section]
+
+    _write_config(config_file, config)
+    return True
+
+
+def get_pypi_index_url() -> str | None:
+    """Get the PyPI index URL from configuration.
+
+    Returns:
+        The configured index URL, or None if not configured.
+    """
+    value = get_setting("pypi", "index_url")
+    return value if isinstance(value, str) else None
+
+
+def get_pypi_fallback_url() -> str | None:
+    """Get the PyPI fallback URL from configuration.
+
+    Returns:
+        The configured fallback URL, or None if not configured.
+    """
+    value = get_setting("pypi", "fallback_url")
+    return value if isinstance(value, str) else None
 
 
 def ensure_config_dir() -> Path:
@@ -161,4 +249,12 @@ def get_default_config_content() -> str:
 # Options: true, false
 # Default: auto-detected based on terminal support
 # enabled = true
+
+[pypi]
+# Custom PyPI index URL for version queries
+# Default: https://pypi.org/simple/
+# index_url = "https://nexus.example.com/repository/pypi/simple/"
+
+# Fallback URL if the primary index fails (network errors only, not 404s)
+# fallback_url = "https://pypi.org/simple/"
 """

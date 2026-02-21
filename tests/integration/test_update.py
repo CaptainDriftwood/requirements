@@ -6,47 +6,54 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 
 from requirements.main import update_package
 
+# =============================================================================
+# Preview changes tests
+# =============================================================================
 
-class TestPreviewChanges:
-    """Test previewing changes against files"""
 
-    def test_single_requirements_file(
-        self, cli_runner: CliRunner, single_requirements_file: str
-    ) -> None:
-        result = cli_runner.invoke(
-            update_package,
-            [
-                "pytest",
-                "~=6.0.0",
-                single_requirements_file,
-                "--preview",
-            ],
-        )
-        assert result.exit_code == 0
-        assert "Previewing changes" in result.output
-        assert f"{single_requirements_file}/requirements.txt" in result.output
-        assert "-pytest" in result.output
-        assert "+pytest~=6.0.0" in result.output
+def test_preview_single_requirements_file(
+    cli_runner: CliRunner, single_requirements_file: str
+) -> None:
+    """Test previewing changes on a single requirements file"""
+    result = cli_runner.invoke(
+        update_package,
+        [
+            "pytest",
+            "~=6.0.0",
+            single_requirements_file,
+            "--preview",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Previewing changes" in result.output
+    assert f"{single_requirements_file}/requirements.txt" in result.output
+    assert "-pytest" in result.output
+    assert "+pytest~=6.0.0" in result.output
 
-        # assert that file contents are unchanged
-        contents = (
-            pathlib.Path(single_requirements_file) / "requirements.txt"
-        ).read_text()
-        assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
+    # assert that file contents are unchanged
+    contents = (pathlib.Path(single_requirements_file) / "requirements.txt").read_text()
+    assert contents == "pytest\nboto3~=1.0.0\nenhancement-models==1.0.0\n"
 
-    def test_multiple_requirements_files(
-        self, cli_runner: CliRunner, multiple_nested_directories: str
-    ) -> None:
-        result = cli_runner.invoke(
-            update_package,
-            [
-                "pytest",
-                "~=6.0.0",
-                multiple_nested_directories,
-                "--preview",
-            ],
-        )
-        assert result.exit_code == 0
+
+def test_preview_multiple_requirements_files(
+    cli_runner: CliRunner, multiple_nested_directories: str
+) -> None:
+    """Test previewing changes on multiple requirements files"""
+    result = cli_runner.invoke(
+        update_package,
+        [
+            "pytest",
+            "~=6.0.0",
+            multiple_nested_directories,
+            "--preview",
+        ],
+    )
+    assert result.exit_code == 0
+
+
+# =============================================================================
+# Update package tests
+# =============================================================================
 
 
 def test_single_requirements_file_in_directory(
