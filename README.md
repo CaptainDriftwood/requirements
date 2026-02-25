@@ -287,9 +287,24 @@ requirements cat
 3. User config file (`~/.requirements/config.toml`)
 4. Auto-detection (default)
 
-### Configuration File
+### Configuration
 
-The CLI supports a configuration file stored in your home directory at `~/.requirements/config.toml`.
+The CLI supports a flexible configuration system with multiple sources, merged in priority order.
+
+#### Configuration Hierarchy
+
+Settings are loaded and merged from multiple sources (highest to lowest priority):
+
+1. **CLI arguments** (`--index-url`, `--color`)
+2. **Environment variables** (`REQUIREMENTS_CLI_*`, `PIP_INDEX_URL`)
+3. **Project config** (`pyproject.toml` `[tool.requirements-cli]` section)
+4. **User config** (`~/.requirements/config.toml`)
+5. **pip.conf** (standard pip configuration files)
+6. **Defaults** (`https://pypi.org/simple/`)
+
+#### User Configuration File
+
+The CLI supports a user configuration file at `~/.requirements/config.toml`.
 
 **Initialize config file:**
 ```bash
@@ -301,20 +316,19 @@ requirements config init
 # Enable colors
 requirements config set color.enabled true
 
-# Disable colors
-requirements config set color.enabled false
-
 # Set custom PyPI index URL
 requirements config set pypi.index_url https://nexus.example.com/simple/
 
 # Set fallback URL (used when primary fails)
 requirements config set pypi.fallback_url https://pypi.org/simple/
+
+# Set multiple extra index URLs (comma-separated)
+requirements config set pypi.extra_index_urls "https://extra1.com/simple/,https://extra2.com/simple/"
 ```
 
 **Remove configuration values (reset to default):**
 ```bash
 requirements config unset pypi.index_url
-requirements config unset color.enabled
 ```
 
 **View current settings:**
@@ -322,19 +336,12 @@ requirements config unset color.enabled
 requirements config show
 ```
 
-**Show config file path:**
+**View resolved configuration (shows all sources):**
 ```bash
-requirements config path
+requirements config resolved
 ```
 
-**Available settings:**
-| Setting | Type | Description |
-|---------|------|-------------|
-| `color.enabled` | bool | Enable/disable colored output |
-| `pypi.index_url` | URL | Primary PyPI index URL for version queries |
-| `pypi.fallback_url` | URL | Fallback URL if primary fails (network errors only) |
-
-**Example config file (`~/.requirements/config.toml`):**
+**Example user config (`~/.requirements/config.toml`):**
 ```toml
 [color]
 enabled = true
@@ -342,12 +349,89 @@ enabled = true
 [pypi]
 index_url = "https://nexus.example.com/simple/"
 fallback_url = "https://pypi.org/simple/"
+extra_index_urls = ["https://private.example.com/simple/"]
 ```
 
-**Index URL priority:**
-1. `--index-url` flag (highest priority)
-2. Config `pypi.index_url`
-3. Default PyPI (`https://pypi.org/simple/`)
+#### Project Configuration (pyproject.toml)
+
+Configure settings per-project using `pyproject.toml`:
+
+```toml
+[tool.requirements-cli]
+color = true
+
+[tool.requirements-cli.pypi]
+index_url = "https://private.company.com/simple/"
+fallback_url = "https://pypi.org/simple/"
+extra_index_urls = [
+    "https://team-packages.company.com/simple/",
+]
+```
+
+This allows different projects to use different PyPI indexes without changing global settings.
+
+#### Environment Variables
+
+The CLI respects the following environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `REQUIREMENTS_CLI_INDEX_URL` | Primary index URL (highest priority) |
+| `REQUIREMENTS_CLI_FALLBACK_URL` | Fallback URL for network errors |
+| `REQUIREMENTS_CLI_EXTRA_INDEX_URLS` | Comma-separated extra index URLs |
+| `REQUIREMENTS_CLI_COLOR` | Enable/disable colors (`true`/`false`) |
+| `PIP_INDEX_URL` | Fallback for index URL (lower priority) |
+| `PIP_EXTRA_INDEX_URL` | Space-separated extra index URLs (lower priority) |
+| `NO_COLOR` | Disable colors ([no-color.org](https://no-color.org/)) |
+
+**Example:**
+```bash
+# Use private index for this session
+export REQUIREMENTS_CLI_INDEX_URL=https://private.company.com/simple/
+requirements versions mypackage
+
+# Or inline
+REQUIREMENTS_CLI_INDEX_URL=https://private.example.com/simple/ requirements versions mypackage
+```
+
+#### pip.conf Integration
+
+The CLI automatically reads index settings from standard pip configuration files:
+
+**Locations checked (in order):**
+- System: `/etc/pip.conf` (Linux/macOS) or `C:\ProgramData\pip\pip.ini` (Windows)
+- User: `~/.config/pip/pip.conf` or `~/.pip/pip.conf`
+- Virtualenv: `$VIRTUAL_ENV/pip.conf`
+
+**Example pip.conf:**
+```ini
+[global]
+index-url = https://pypi.company.com/simple/
+extra-index-url =
+    https://private.company.com/simple/
+    https://team.company.com/simple/
+```
+
+pip.conf settings have the lowest priority and are overridden by user config, project config, environment variables, and CLI arguments.
+
+#### Available Settings
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| `color.enabled` | bool | Enable/disable colored output |
+| `pypi.index_url` | URL | Primary PyPI index URL for version queries |
+| `pypi.fallback_url` | URL | Fallback URL if primary fails (network errors only) |
+| `pypi.extra_index_urls` | URL list | Additional index URLs to search |
+
+#### Index URL Search Order
+
+When querying package versions, URLs are tried in this order:
+
+1. `index_url` (primary)
+2. Each URL in `extra_index_urls` (in order)
+3. `fallback_url` (only on network errors, not 404s)
+
+A 404 response means the package doesn't exist at that index and moves to the next URL. Network errors (connection refused, timeout) trigger the fallback.
 
 ### Examples
 
