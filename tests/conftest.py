@@ -6,6 +6,16 @@ import pytest
 from click.testing import CliRunner
 from pyfakefs.fake_filesystem import FakeFilesystem
 
+from requirements.config import clear_config_cache
+
+
+@pytest.fixture(autouse=True)
+def clear_cache_before_tests():
+    """Clear the config cache before each test to ensure test isolation."""
+    clear_config_cache()
+    yield
+    clear_config_cache()
+
 
 @pytest.fixture(scope="session")
 def cli_runner() -> Generator[CliRunner, None, None]:

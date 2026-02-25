@@ -3,8 +3,12 @@
 import os
 import pathlib
 import re
+from typing import Final
 
 import click
+
+# Pre-compiled regex for excluding virtual environments and build directories
+_EXCLUSION_PATTERN: Final = re.compile(r"[/\\](venv|\.venv|virtualenv|\.aws-sam)[/\\]")
 
 
 def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
@@ -54,11 +58,10 @@ def gather_requirements_files(paths: list[pathlib.Path]) -> list[pathlib.Path]:
         else:
             click.echo(f"Error: '{path}' is neither a file nor a directory", err=True)
 
-    exclusion_pattern = re.compile(r"[/\\](venv|\.venv|virtualenv|\.aws-sam)[/\\]")
     validated_files = []
 
     for file in requirements_files:
-        if exclusion_pattern.search(str(file)):
+        if _EXCLUSION_PATTERN.search(str(file)):
             continue
 
         if not file.exists():

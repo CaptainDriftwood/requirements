@@ -5,11 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from requirements.config import PyPIConfig
 from requirements.pypi import (
     PyPIFetchError,
     SimpleAPIParser,
     _extract_version_from_filename,
     fetch_package_versions,
+    fetch_with_config,
     fetch_with_fallback,
 )
 
@@ -296,3 +298,110 @@ def test_fallback_uses_default_index_when_none_provided(
 
     assert len(versions) == 4
     assert url_used == "https://pypi.org/simple/"
+
+
+# =============================================================================
+# fetch_with_config tests
+# =============================================================================
+
+
+def test_fetch_with_config_primary_success(mock_pypi_response: MagicMock) -> None:
+    """Test fetch_with_config returns primary URL results on success."""
+    config = PyPIConfig(
+        index_url="https://primary.example.com/simple/",
+        fallback_url="https://fallback.example.com/simple/",
+    )
+
+    with patch("urllib.request.urlopen", return_value=mock_pypi_response):
+        versions, url_used = fetch_with_config("requests", config)
+
+    assert len(versions) == 4
+    assert url_used == "https://primary.example.com/simple/"
+
+
+def test_fetch_with_config_tries_extra_urls(mock_pypi_response: MagicMock) -> None:
+    """Test fetch_with_config tries extra_index_urls when primary fails."""
+    config = PyPIConfig(
+        index_url="https://primary.example.com/simple/",
+        extra_index_urls=["https://extra.example.com/simple/"],
+        fallback_url="https://fallback.example.com/simple/",
+    )
+
+    def side_effect(request, **kwargs):
+        if "primary" in request.full_url:
+            raise urllib.error.HTTPError(
+                url=request.full_url,
+                code=404,
+                msg="Not Found",
+                hdrs={},  # type: ignore[arg-type]
+                fp=None,
+            )
+        return mock_pypi_response
+
+    with patch("urllib.request.urlopen", side_effect=side_effect):
+        versions, url_used = fetch_with_config("requests", config)
+
+    assert len(versions) == 4
+    assert url_used == "https://extra.example.com/simple/"
+
+
+def test_fetch_with_config_uses_fallback_on_network_error(
+    mock_pypi_response: MagicMock,
+) -> None:
+    """Test fetch_with_config uses fallback on network errors."""
+    config = PyPIConfig(
+        index_url="https://primary.example.com/simple/",
+        fallback_url="https://fallback.example.com/simple/",
+    )
+
+    def side_effect(request, **kwargs):
+        if "primary" in request.full_url:
+            raise urllib.error.URLError("Connection refused")
+        return mock_pypi_response
+
+    with patch("urllib.request.urlopen", side_effect=side_effect):
+        versions, url_used = fetch_with_config("requests", config)
+
+    assert len(versions) == 4
+    assert url_used == "https://fallback.example.com/simple/"
+
+
+def test_fetch_with_config_no_fallback_when_all_404() -> None:
+    """Test fetch_with_config doesn't use fallback when all indexes return 404."""
+    config = PyPIConfig(
+        index_url="https://primary.example.com/simple/",
+        extra_index_urls=["https://extra.example.com/simple/"],
+        fallback_url="https://fallback.example.com/simple/",
+    )
+
+    error = urllib.error.HTTPError(
+        url="test",
+        code=404,
+        msg="Not Found",
+        hdrs={},  # type: ignore[arg-type]
+        fp=None,
+    )
+
+    with patch("urllib.request.urlopen", side_effect=error):
+        with pytest.raises(PyPIFetchError):
+            fetch_with_config("nonexistent", config)
+
+
+def test_fetch_with_config_all_fail() -> None:
+    """Test fetch_with_config raises error when all URLs fail."""
+    config = PyPIConfig(
+        index_url="https://primary.example.com/simple/",
+        extra_index_urls=["https://extra.example.com/simple/"],
+        fallback_url="https://fallback.example.com/simple/",
+    )
+
+    error = urllib.error.URLError("Connection refused")
+
+    with patch("urllib.request.urlopen", side_effect=error):
+        with pytest.raises(PyPIFetchError) as exc_info:
+            fetch_with_config("requests", config)
+
+    # Should mention all URLs tried
+    assert "primary.example.com" in exc_info.value.url
+    assert "extra.example.com" in exc_info.value.url
+    assert "fallback.example.com" in exc_info.value.url

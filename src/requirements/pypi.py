@@ -6,10 +6,17 @@ import re
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
+from typing import TYPE_CHECKING, Final
 
 from packaging.version import InvalidVersion, Version
 
+if TYPE_CHECKING:
+    from requirements.config import PyPIConfig
+
 DEFAULT_INDEX_URL = "https://pypi.org/simple/"
+
+# Pre-compiled regex for PEP 503 package name normalization
+_NORMALIZE_PATTERN: Final = re.compile(r"[-_.]+")
 
 
 class PyPIFetchError(Exception):
@@ -53,7 +60,7 @@ def _extract_version_from_filename(filename: str, package_name: str) -> str | No
     """
     # Normalize package name for matching (PEP 503: replace [-_.] with -)
     # Then build a pattern that matches any separator variant
-    normalized = re.sub(r"[-_.]+", "-", package_name.lower())
+    normalized = _NORMALIZE_PATTERN.sub("-", package_name.lower())
     # Split by separator and rejoin with pattern that matches any separator
     name_parts = normalized.split("-")
     name_pattern = "[-_.]+".join(re.escape(part) for part in name_parts)
@@ -100,7 +107,7 @@ def fetch_package_versions(
         index_url = DEFAULT_INDEX_URL
 
     # Normalize package name for URL (PEP 503)
-    normalized_name = re.sub(r"[-_.]+", "-", package_name.lower())
+    normalized_name = _NORMALIZE_PATTERN.sub("-", package_name.lower())
 
     # Ensure index_url ends with /
     if not index_url.endswith("/"):
@@ -198,3 +205,74 @@ def fetch_with_fallback(
             f"{primary_url} and {fallback_url}",
             Exception(f"Primary: {primary_error}, Fallback: {e}"),
         ) from e
+
+
+def fetch_with_config(
+    package_name: str,
+    config: PyPIConfig,
+    include_yanked: bool = False,
+) -> tuple[list[str], str]:
+    """Fetch package versions using PyPIConfig with extra index URL support.
+
+    Tries URLs in this order:
+    1. Primary index_url
+    2. Each extra_index_url in order
+    3. fallback_url (only on network errors, not 404s)
+
+    Args:
+        package_name: Name of the package to query.
+        config: PyPIConfig with index URLs.
+        include_yanked: Whether to include yanked versions.
+
+    Returns:
+        A tuple of (versions, url_used) where versions is the list of
+        version strings and url_used is the URL that succeeded.
+
+    Raises:
+        PyPIFetchError: If all URLs fail or the package is not found.
+    """
+    # Build list of URLs to try
+    urls_to_try = [config.index_url, *config.extra_index_urls]
+
+    last_error: Exception | None = None
+    is_404_error = False
+
+    for url in urls_to_try:
+        try:
+            versions = fetch_package_versions(
+                package_name, url, include_yanked=include_yanked
+            )
+            return versions, url
+        except urllib.error.HTTPError as e:
+            last_error = e
+            if e.code == 404:
+                is_404_error = True
+                # Continue to next URL - package might exist in different index
+                continue
+            # For other HTTP errors, continue to next URL
+            continue
+        except urllib.error.URLError as e:
+            last_error = e
+            # Network error - continue to next URL
+            continue
+
+    # All primary URLs failed, try fallback if it's not a 404 everywhere
+    # and we have a fallback configured
+    if config.fallback_url and not is_404_error:
+        try:
+            versions = fetch_package_versions(
+                package_name, config.fallback_url, include_yanked=include_yanked
+            )
+            return versions, config.fallback_url
+        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+            last_error = e
+
+    # All URLs failed
+    tried_urls = ", ".join(urls_to_try)
+    if config.fallback_url:
+        tried_urls += f", {config.fallback_url}"
+
+    raise PyPIFetchError(
+        tried_urls,
+        last_error or Exception("No URLs available"),
+    )

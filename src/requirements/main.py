@@ -9,12 +9,13 @@ from typing import TYPE_CHECKING, Final
 import click
 
 from requirements.config import (
+    DEFAULT_INDEX_URL,
     ensure_config_dir,
     get_config_file,
     get_default_config_content,
-    get_pypi_fallback_url,
-    get_pypi_index_url,
+    get_effective_pypi_config,
     load_config,
+    load_merged_config,
     save_setting,
     unset_setting,
 )
@@ -25,7 +26,7 @@ from requirements.files import (
     resolve_paths,
 )
 from requirements.packages import check_package_name, validate_version_specifier
-from requirements.pypi import PyPIFetchError, fetch_with_fallback
+from requirements.pypi import PyPIFetchError, fetch_with_config
 from requirements.sorting import sort_packages
 
 if TYPE_CHECKING:
@@ -195,9 +196,9 @@ def update_package(
 
                 contents[index] = f"{package_name}{version_specifier}{inline_comment}"
                 modified = True
-                contents = sort_packages(contents)
 
         if modified:
+            contents = sort_packages(contents)
             if preview:
                 console.print(str(requirements_file), style="path")
                 print_unified_diff(console, original_contents, contents)
@@ -604,21 +605,16 @@ def show_versions(
     Note:
     - Works with PyPI, Nexus, Artifactory, DevPI, and any PEP 503 compliant index
     - Uses the Simple API (PEP 503) to query package versions
-    - Index URL priority: --index-url flag > config pypi.index_url > default PyPI
-    - If primary index fails (network error), falls back to config pypi.fallback_url
+    - Index URL priority: CLI > env vars > pyproject.toml > user config > pip.conf > default
+    - Searches extra_index_urls in order before falling back
     """
     console = get_console_from_context(ctx)
 
-    # Priority: CLI flag > config > default
-    effective_index_url = index_url or get_pypi_index_url()
-    fallback_url = get_pypi_fallback_url()
+    # Get effective config with full hierarchy
+    pypi_config = get_effective_pypi_config(cli_index_url=index_url)
 
     try:
-        versions, _url_used = fetch_with_fallback(
-            package_name,
-            index_url=effective_index_url,
-            fallback_url=fallback_url,
-        )
+        versions, _url_used = fetch_with_config(package_name, pypi_config)
 
         if not versions:
             raise click.ClickException(f"No versions found for '{package_name}'")
@@ -715,6 +711,7 @@ VALID_SETTINGS: Final[dict[str, str]] = {
     "color.enabled": "bool",
     "pypi.index_url": "url",
     "pypi.fallback_url": "url",
+    "pypi.extra_index_urls": "url_list",
 }
 
 
@@ -741,14 +738,16 @@ def config_set(ctx: click.Context, setting: str, value: str) -> None:
 
     \b
     Available settings:
-        color.enabled     Enable/disable colored output (true/false)
-        pypi.index_url    Custom PyPI index URL
-        pypi.fallback_url Fallback URL if primary fails
+        color.enabled         Enable/disable colored output (true/false)
+        pypi.index_url        Custom PyPI index URL
+        pypi.fallback_url     Fallback URL if primary fails
+        pypi.extra_index_urls Comma-separated list of extra index URLs
 
     \b
     Examples:
         requirements config set color.enabled true
         requirements config set pypi.index_url https://nexus.example.com/simple/
+        requirements config set pypi.extra_index_urls "https://a.com/simple/,https://b.com/simple/"
     """
     console = get_console_from_context(ctx)
 
@@ -780,6 +779,15 @@ def config_set(ctx: click.Context, setting: str, value: str) -> None:
             )
         save_setting(section, key, value)
         console.print(f"{setting} = {value}")
+    elif setting_type == "url_list":
+        urls = [url.strip() for url in value.split(",") if url.strip()]
+        for url in urls:
+            if not _validate_url(url):
+                raise click.ClickException(
+                    f"Invalid URL '{url}'. Must start with http:// or https://"
+                )
+        save_setting(section, key, urls)
+        console.print(f"{setting} = {urls}")
 
 
 @config_group.command(name="unset")
@@ -829,6 +837,59 @@ def config_init(ctx: click.Context) -> None:
     ensure_config_dir()
     config_file.write_text(get_default_config_content())
     console.print(f"Created config file: {config_file}")
+
+
+@config_group.command(name="resolved")
+@click.pass_context
+def config_resolved(ctx: click.Context) -> None:
+    """Show resolved configuration from all sources.
+
+    Displays the effective configuration after merging all sources:
+    pip.conf < user config < project config < environment variables
+
+    Shows where each PyPI setting was resolved from.
+    """
+    console = get_console_from_context(ctx)
+
+    # Get merged config
+    merged = load_merged_config()
+
+    console.print("[path]Resolved configuration:[/path]\n")
+
+    # Show PyPI settings with source
+    pypi_config = get_effective_pypi_config()
+
+    console.print("[package]PyPI Settings:[/package]")
+    console.print(f"  index_url: {pypi_config.index_url}")
+    console.print(f"    [warning](source: {pypi_config.source})[/warning]")
+
+    if pypi_config.fallback_url:
+        console.print(f"  fallback_url: {pypi_config.fallback_url}")
+    else:
+        console.print("  fallback_url: [warning](not set)[/warning]")
+
+    if pypi_config.extra_index_urls:
+        console.print(f"  extra_index_urls: {pypi_config.extra_index_urls}")
+    else:
+        console.print("  extra_index_urls: [warning](none)[/warning]")
+
+    # Show color settings
+    console.print("\n[package]Color Settings:[/package]")
+    color_config = merged.get("color", {})
+    if isinstance(color_config, dict) and "enabled" in color_config:
+        console.print(f"  enabled: {color_config['enabled']}")
+    else:
+        console.print("  enabled: [warning](auto-detect)[/warning]")
+
+    # Show configuration hierarchy
+    console.print("\n[package]Configuration Hierarchy:[/package]")
+    console.print("  Priority (highest to lowest):")
+    console.print("    1. CLI arguments")
+    console.print("    2. Environment variables (REQUIREMENTS_CLI_*, PIP_INDEX_URL)")
+    console.print("    3. Project config (pyproject.toml [tool.requirements-cli])")
+    console.print(f"    4. User config ({get_config_file()})")
+    console.print("    5. pip.conf settings")
+    console.print(f"    6. Defaults (index_url: {DEFAULT_INDEX_URL})")
 
 
 if __name__ == "__main__":

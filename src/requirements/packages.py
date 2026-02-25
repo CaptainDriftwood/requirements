@@ -1,9 +1,15 @@
 """Package name validation and matching utilities."""
 
 import re
+from typing import Final
 
 import click
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
+
+# Pre-compiled regex patterns for package name extraction
+_EXTRAS_SPLIT_PATTERN: Final = re.compile(r"\[")
+_VERSION_SPLIT_PATTERN: Final = re.compile(r"~=|==|>=|<=|!=|>|<")
+_GITHUB_REPO_PATTERN: Final = re.compile(r"/([^/]+?)(?:\.git)?(?:@|#|$)")
 
 
 def validate_version_specifier(version_specifier: str) -> str:
@@ -74,8 +80,8 @@ def check_package_name(package_name: str, line: str) -> bool:
     if line_lower.startswith(("./", "../")):
         return package_name_lower in line_lower.split("/")[-1]
 
-    line_lower = re.split(r"\[", line_lower)[0]
-    line_lower = re.split(r"~=|==|>=|<=|!=|>|<", line_lower)[0].strip()
+    line_lower = _EXTRAS_SPLIT_PATTERN.split(line_lower)[0]
+    line_lower = _VERSION_SPLIT_PATTERN.split(line_lower)[0].strip()
 
     return package_name_lower == line_lower
 
@@ -123,7 +129,7 @@ def _extract_package_from_url(line: str) -> str | None:
         return line_stripped.split(" @ ")[0].strip().lower()
 
     if "github.com" in line_stripped or "gitlab.com" in line_stripped:
-        match = re.search(r"/([^/]+?)(?:\.git)?(?:@|#|$)", line_stripped)
+        match = _GITHUB_REPO_PATTERN.search(line_stripped)
         if match:
             return match.group(1).lower()
 
