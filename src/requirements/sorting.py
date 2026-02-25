@@ -1,6 +1,11 @@
 """Sorting utilities for requirements.txt files."""
 
 import re
+from typing import Final
+
+# Pre-compiled regex: matches extras bracket OR any version operator
+# This allows extracting the package name in a single split operation
+_PACKAGE_NAME_SPLIT_PATTERN: Final = re.compile(r"\[|~=|==|>=|<=|!=|>|<")
 
 
 def sort_packages(lines: list[str]) -> list[str]:
@@ -64,9 +69,9 @@ def _get_sort_key(line: str) -> str:
     """
     stripped = line.strip()
 
+    # Remove inline comment if present
     if "#" in stripped:
         stripped = stripped.split("#")[0].strip()
 
-    stripped = re.split(r"\[", stripped)[0]
-
-    return re.split(r"~=|==|>=|<=|!=|>|<", stripped)[0].strip()
+    # Extract package name by splitting on extras bracket or version operators
+    return _PACKAGE_NAME_SPLIT_PATTERN.split(stripped)[0].strip()

@@ -29,6 +29,31 @@ CONFIG_DIR_NAME: Final[str] = ".requirements"
 CONFIG_FILE_NAME: Final[str] = "config.toml"
 DEFAULT_INDEX_URL: Final[str] = "https://pypi.org/simple/"
 
+# Pre-compiled regex pattern for parsing pip extra-index-url
+_PIP_EXTRA_URL_SPLIT_PATTERN: Final = re.compile(r"[\s\n]+")
+_PIP_NEWLINE_SPLIT_PATTERN: Final = re.compile(r"[\n\r]+")
+
+# Module-level configuration cache
+_config_cache: dict[str, Any] = {
+    "merged": None,
+    "user": None,
+    "pip": None,
+    "project": None,
+    "project_root": None,
+}
+
+
+def clear_config_cache() -> None:
+    """Clear the configuration cache.
+
+    Call this after modifying configuration files to ensure fresh reads.
+    """
+    _config_cache["merged"] = None
+    _config_cache["user"] = None
+    _config_cache["pip"] = None
+    _config_cache["project"] = None
+    _config_cache["project_root"] = None
+
 
 @dataclass
 class PyPIConfig:
@@ -72,15 +97,22 @@ def load_config() -> dict[str, Any]:
         Dictionary with configuration settings.
         Returns empty dict if config file doesn't exist.
     """
+    if _config_cache["user"] is not None:
+        return _config_cache["user"]
+
     config_file = get_config_file()
 
     if not config_file.exists():
+        _config_cache["user"] = {}
         return {}
 
     try:
         with config_file.open("rb") as f:
-            return tomllib.load(f)
+            config = tomllib.load(f)
+            _config_cache["user"] = config
+            return config
     except (OSError, tomllib.TOMLDecodeError):
+        _config_cache["user"] = {}
         return {}
 
 
@@ -137,6 +169,7 @@ def save_setting(section: str, key: str, value: ConfigValue) -> None:
     config[section][key] = value
 
     _write_config(config_file, config)
+    clear_config_cache()
 
 
 def unset_setting(section: str, key: str) -> bool:
@@ -163,6 +196,7 @@ def unset_setting(section: str, key: str) -> bool:
         del config[section]
 
     _write_config(config_file, config)
+    clear_config_cache()
     return True
 
 
@@ -214,6 +248,7 @@ def save_color_setting(enabled: bool) -> None:
     config["color"]["enabled"] = enabled
 
     _write_config(config_file, config)
+    clear_config_cache()
 
 
 def _write_config(config_file: Path, config: dict[str, Any]) -> None:
@@ -312,6 +347,10 @@ def find_project_root(start: Path | None = None) -> Path | None:
     Returns:
         Path to project root, or None if not found.
     """
+    # Use cache only when using default (cwd)
+    if start is None and _config_cache["project_root"] is not None:
+        return _config_cache["project_root"]
+
     current = start or Path.cwd()
 
     # Resolve to absolute path
@@ -320,14 +359,20 @@ def find_project_root(start: Path | None = None) -> Path | None:
     # First pass: look for pyproject.toml
     for directory in [current, *current.parents]:
         if (directory / "pyproject.toml").exists():
+            if start is None:
+                _config_cache["project_root"] = directory
             return directory
 
     # Second pass: look for .git
     for directory in [current, *current.parents]:
         git_path = directory / ".git"
         if git_path.exists():
+            if start is None:
+                _config_cache["project_root"] = directory
             return directory
 
+    if start is None:
+        _config_cache["project_root"] = None
     return None
 
 
@@ -341,21 +386,35 @@ def load_project_config(project_root: Path | None = None) -> dict[str, Any]:
         Configuration dictionary from [tool.requirements-cli] section,
         or empty dict if not found.
     """
+    # Use cache only when auto-detecting project root
+    if project_root is None and _config_cache["project"] is not None:
+        return _config_cache["project"]
+
     if project_root is None:
         project_root = find_project_root()
 
     if project_root is None:
+        if _config_cache["project"] is None:
+            _config_cache["project"] = {}
         return {}
 
     pyproject = project_root / "pyproject.toml"
     if not pyproject.exists():
+        if _config_cache["project"] is None:
+            _config_cache["project"] = {}
         return {}
 
     try:
         with pyproject.open("rb") as f:
             data = tomllib.load(f)
-        return data.get("tool", {}).get("requirements-cli", {})
+        config = data.get("tool", {}).get("requirements-cli", {})
+        # Only cache when using auto-detected root
+        if _config_cache["project"] is None:
+            _config_cache["project"] = config
+        return config
     except (OSError, tomllib.TOMLDecodeError):
+        if _config_cache["project"] is None:
+            _config_cache["project"] = {}
         return {}
 
 
@@ -419,7 +478,9 @@ def _get_env_config() -> dict[str, Any]:
     elif extra_urls := os.environ.get("PIP_EXTRA_INDEX_URL"):
         # PIP uses space or newline separation
         pypi_config["extra_index_urls"] = [
-            url.strip() for url in re.split(r"[\s\n]+", extra_urls) if url.strip()
+            url.strip()
+            for url in _PIP_EXTRA_URL_SPLIT_PATTERN.split(extra_urls)
+            if url.strip()
         ]
 
     if pypi_config:
@@ -517,7 +578,7 @@ def _parse_pip_config(config_path: Path) -> dict[str, Any]:
                 # Handle multi-line values (each URL on new line with indentation)
                 extra_urls = [
                     url.strip()
-                    for url in re.split(r"[\n\r]+", extra_urls_raw)
+                    for url in _PIP_NEWLINE_SPLIT_PATTERN.split(extra_urls_raw)
                     if url.strip()
                 ]
                 pypi_config["extra_index_urls"] = extra_urls
@@ -538,6 +599,9 @@ def load_pip_config() -> dict[str, Any]:
     Returns:
         Configuration dictionary with pypi settings.
     """
+    if _config_cache["pip"] is not None:
+        return _config_cache["pip"]
+
     merged_config: dict[str, Any] = {}
 
     for config_path in _get_pip_config_paths():
@@ -545,6 +609,7 @@ def load_pip_config() -> dict[str, Any]:
         if pip_config:
             merged_config = _deep_merge(merged_config, pip_config)
 
+    _config_cache["pip"] = merged_config
     return merged_config
 
 
@@ -568,6 +633,10 @@ def load_merged_config(project_root: Path | None = None) -> dict[str, Any]:
     Returns:
         Merged configuration dictionary.
     """
+    # Use cache only when auto-detecting project root
+    if project_root is None and _config_cache["merged"] is not None:
+        return _config_cache["merged"]
+
     # Start with pip.conf (lowest priority)
     config = load_pip_config()
 
@@ -581,7 +650,13 @@ def load_merged_config(project_root: Path | None = None) -> dict[str, Any]:
 
     # Merge environment variables (highest priority)
     env_config = _get_env_config()
-    return _deep_merge(config, env_config)
+    merged = _deep_merge(config, env_config)
+
+    # Only cache when using auto-detected root
+    if project_root is None:
+        _config_cache["merged"] = merged
+
+    return merged
 
 
 def get_effective_pypi_config(

@@ -196,9 +196,9 @@ def update_package(
 
                 contents[index] = f"{package_name}{version_specifier}{inline_comment}"
                 modified = True
-                contents = sort_packages(contents)
 
         if modified:
+            contents = sort_packages(contents)
             if preview:
                 console.print(str(requirements_file), style="path")
                 print_unified_diff(console, original_contents, contents)
