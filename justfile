@@ -9,21 +9,21 @@ help:
     @echo "Recipes:"
     @just --list --unsorted
 
-# Run pytest against all tests
+# Run pytest against all tests (parallel)
 test:
-    @uv run pytest
+    @uv run pytest -n auto
 
 # Run pytest with minimal output for quick verification
 test-quick:
-    @uv run pytest -q
+    @uv run pytest -n auto -q
 
 # Run only unit tests (fast, no I/O)
 test-unit:
-    @uv run pytest tests/unit -q
+    @uv run pytest tests/unit -n auto -q
 
 # Run only integration tests (CLI, file system)
 test-integration:
-    @uv run pytest tests/integration -q
+    @uv run pytest tests/integration -n auto -q
 
 # Run ruff linter against all files
 lint:
