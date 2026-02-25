@@ -9,9 +9,11 @@ from pyfakefs.fake_filesystem import FakeFilesystem
 from requirements.config import (
     DEFAULT_INDEX_URL,
     PyPIConfig,
+    _config_cache,
     _deep_merge,
     _format_toml_value,
     _get_env_config,
+    clear_config_cache,
     find_project_root,
     get_color_setting,
     get_config_dir,
@@ -52,6 +54,35 @@ def test_load_config_returns_empty_when_no_file(
     monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
     config = load_config()
     assert config == {}
+
+
+def test_load_config_returns_empty_on_invalid_toml(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that load_config returns empty dict on invalid TOML."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+    config_file = fake_home / ".requirements" / "config.toml"
+    fs.create_file(config_file, contents="invalid toml [[[")
+
+    config = load_config()
+    assert config == {}
+    # Cache should also store empty dict
+    assert _config_cache["user"] == {}
+
+
+def test_get_setting_returns_none_for_non_dict_section(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test get_setting returns None when section value is not a dict."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+    # Create config with section as non-dict value
+    config_file = fake_home / ".requirements" / "config.toml"
+    fs.create_file(config_file, contents='color = "not a dict"')
+
+    result = get_setting("color", "enabled")
+    assert result is None
 
 
 def test_get_color_setting_returns_none_when_not_configured(
@@ -640,3 +671,163 @@ def test_get_effective_pypi_config_with_extra_urls(
 
     config = get_effective_pypi_config()
     assert config.extra_index_urls == ["https://extra.example.com/"]
+
+
+# =============================================================================
+# Caching tests
+# =============================================================================
+
+
+def test_clear_config_cache_resets_all_keys():
+    """Test that clear_config_cache resets all cache keys to None."""
+    # Set some values in the cache
+    _config_cache["user"] = {"some": "value"}
+    _config_cache["pip"] = {"other": "value"}
+    _config_cache["project"] = {"project": "config"}
+    _config_cache["merged"] = {"merged": "config"}
+    _config_cache["project_root"] = pathlib.Path("/some/path")
+
+    clear_config_cache()
+
+    assert _config_cache["user"] is None
+    assert _config_cache["pip"] is None
+    assert _config_cache["project"] is None
+    assert _config_cache["merged"] is None
+    assert _config_cache["project_root"] is None
+
+
+def test_load_config_uses_cache(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that load_config returns cached value on second call."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+    config_file = fake_home / ".requirements" / "config.toml"
+    fs.create_file(config_file, contents='[color]\nenabled = true')
+
+    # First call loads from file
+    config1 = load_config()
+    assert config1 == {"color": {"enabled": True}}
+    assert _config_cache["user"] == {"color": {"enabled": True}}
+
+    # Modify file (but cache should still return old value)
+    config_file.write_text('[color]\nenabled = false')
+
+    # Second call returns cached value
+    config2 = load_config()
+    assert config2 == {"color": {"enabled": True}}
+
+
+def test_save_setting_clears_cache(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that save_setting clears the config cache."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+    fs.create_dir(fake_home / ".requirements")
+
+    # Load config to populate cache
+    load_config()
+
+    # Set a value in merged cache to verify it gets cleared
+    _config_cache["merged"] = {"cached": "value"}
+
+    save_setting("pypi", "index_url", "https://example.com/")
+
+    # Cache should be cleared
+    assert _config_cache["merged"] is None
+    assert _config_cache["user"] is None
+
+
+def test_save_color_setting_clears_cache(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that save_color_setting clears the config cache."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+    fs.create_dir(fake_home / ".requirements")
+
+    # Populate cache
+    _config_cache["user"] = {"old": "value"}
+    _config_cache["merged"] = {"cached": "value"}
+
+    save_color_setting(True)
+
+    # Cache should be cleared
+    assert _config_cache["merged"] is None
+    assert _config_cache["user"] is None
+
+
+def test_unset_setting_clears_cache(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that unset_setting clears the config cache."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+    config_file = fake_home / ".requirements" / "config.toml"
+    fs.create_file(
+        config_file, contents='[pypi]\nindex_url = "https://example.com/"'
+    )
+
+    # Load and populate cache
+    load_config()
+    _config_cache["merged"] = {"cached": "value"}
+
+    unset_setting("pypi", "index_url")
+
+    # Cache should be cleared
+    assert _config_cache["merged"] is None
+    assert _config_cache["user"] is None
+
+
+def test_load_merged_config_uses_cache(
+    fs: FakeFilesystem, fake_home: pathlib.Path, monkeypatch
+):
+    """Test that load_merged_config returns cached value on second call."""
+    monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
+
+    config_file = fake_home / ".requirements" / "config.toml"
+    fs.create_file(config_file, contents='[color]\nenabled = true')
+
+    # First call loads and caches
+    config1 = load_merged_config()
+    assert _config_cache["merged"] is not None
+
+    # Modify file
+    config_file.write_text('[color]\nenabled = false')
+
+    # Second call returns cached value
+    config2 = load_merged_config()
+    assert config1 == config2
+
+
+def test_find_project_root_uses_cache(fs: FakeFilesystem, monkeypatch):
+    """Test that find_project_root caches result when using default start."""
+    project = pathlib.Path("/test/project")
+    fs.create_file(project / "pyproject.toml", contents="[project]")
+    monkeypatch.chdir(project)
+
+    # First call
+    root1 = find_project_root()
+    assert root1 == project
+    assert _config_cache["project_root"] == project
+
+    # Second call returns cached value
+    root2 = find_project_root()
+    assert root2 == project
+
+
+def test_find_project_root_no_cache_with_explicit_start(
+    fs: FakeFilesystem, monkeypatch
+):
+    """Test that find_project_root doesn't use cache with explicit start path."""
+    project1 = pathlib.Path("/test/project1")
+    project2 = pathlib.Path("/test/project2")
+    fs.create_file(project1 / "pyproject.toml", contents="[project]")
+    fs.create_file(project2 / "pyproject.toml", contents="[project]")
+    monkeypatch.chdir(project1)
+
+    # Call with explicit start - should not affect cache
+    root = find_project_root(start=project2)
+    assert root == project2
+
+    # Cache should not be updated by explicit start call
+    assert _config_cache["project_root"] is None
