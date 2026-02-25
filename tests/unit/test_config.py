@@ -703,7 +703,7 @@ def test_load_config_uses_cache(
     monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
 
     config_file = fake_home / ".requirements" / "config.toml"
-    fs.create_file(config_file, contents='[color]\nenabled = true')
+    fs.create_file(config_file, contents="[color]\nenabled = true")
 
     # First call loads from file
     config1 = load_config()
@@ -711,7 +711,7 @@ def test_load_config_uses_cache(
     assert _config_cache["user"] == {"color": {"enabled": True}}
 
     # Modify file (but cache should still return old value)
-    config_file.write_text('[color]\nenabled = false')
+    config_file.write_text("[color]\nenabled = false")
 
     # Second call returns cached value
     config2 = load_config()
@@ -763,9 +763,7 @@ def test_unset_setting_clears_cache(
     monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
 
     config_file = fake_home / ".requirements" / "config.toml"
-    fs.create_file(
-        config_file, contents='[pypi]\nindex_url = "https://example.com/"'
-    )
+    fs.create_file(config_file, contents='[pypi]\nindex_url = "https://example.com/"')
 
     # Load and populate cache
     load_config()
@@ -785,14 +783,14 @@ def test_load_merged_config_uses_cache(
     monkeypatch.setattr(pathlib.Path, "home", lambda: fake_home)
 
     config_file = fake_home / ".requirements" / "config.toml"
-    fs.create_file(config_file, contents='[color]\nenabled = true')
+    fs.create_file(config_file, contents="[color]\nenabled = true")
 
     # First call loads and caches
     config1 = load_merged_config()
     assert _config_cache["merged"] is not None
 
     # Modify file
-    config_file.write_text('[color]\nenabled = false')
+    config_file.write_text("[color]\nenabled = false")
 
     # Second call returns cached value
     config2 = load_merged_config()
